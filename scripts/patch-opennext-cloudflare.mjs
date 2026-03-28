@@ -10,6 +10,8 @@ const targetFile = path.join(
   "cli",
   "index.mjs"
 );
+const patchedMarker = "CacheHandler = CacheHandler.OpenNextCacheHandler || CacheHandler.default || CacheHandler;";
+const verifyOnly = process.argv.includes("--verify");
 
 const patchedFunction = `async function patchCache(code, config) {
   console.log("# patchCache");
@@ -57,22 +59,39 @@ const patchedFunction = `async function patchCache(code, config) {
 }`;
 
 if (!fs.existsSync(targetFile)) {
-  console.log("OpenNext adapter not installed yet; skipping compatibility patch.");
-  process.exit(0);
-}
-
-const current = fs.readFileSync(targetFile, "utf8");
-
-if (current.includes('const incrementalCacheHandlerPath = "./" + cacheHandlerFileBase + ".cjs";')) {
-  console.log("OpenNext compatibility patch already present.");
-  process.exit(0);
+  throw new Error(`OpenNext adapter file not found: ${targetFile}`);
 }
 
 const patchCachePattern = /async function patchCache\(code, config\) \{[\s\S]*?return patchedCode;\r?\n\}/;
+
+function readTarget() {
+  return fs.readFileSync(targetFile, "utf8");
+}
+
+function assertPatched(text) {
+  if (!text.includes(patchedMarker)) {
+    throw new Error(`OpenNext compatibility patch missing in ${targetFile}`);
+  }
+}
+
+const current = readTarget();
+
+if (verifyOnly) {
+  assertPatched(current);
+  console.log("OpenNext compatibility patch verified.");
+  process.exit(0);
+}
+
+if (current.includes(patchedMarker)) {
+  console.log("OpenNext compatibility patch already present.");
+  process.exit(0);
+}
 
 if (!patchCachePattern.test(current)) {
   throw new Error("Unable to locate the expected patchCache function in @opennextjs/cloudflare 0.2.1.");
 }
 
 fs.writeFileSync(targetFile, current.replace(patchCachePattern, patchedFunction));
+const updated = readTarget();
+assertPatched(updated);
 console.log("Applied OpenNext compatibility patch for Next 13.5.11 incremental cache handling.");

@@ -29,11 +29,10 @@ jobs:
         run: npm ci
 
       - name: Apply OpenNext compatibility patch
-        run: npm run cf:patch-adapter
+        run: node scripts/patch-opennext-cloudflare.mjs
 
       - name: Verify patched OpenNext adapter
-        run: |
-          node -e "const fs=require('fs'); const file='node_modules/@opennextjs/cloudflare/dist/cli/index.mjs'; const text=fs.readFileSync(file,'utf8'); const marker='const incrementalCacheHandlerPath = \"./\" + cacheHandlerFileBase + \".cjs\";'; if (!text.includes(marker)) { throw new Error('OpenNext compatibility patch missing'); } console.log('OpenNext compatibility patch verified.');"
+        run: node scripts/patch-opennext-cloudflare.mjs --verify
 
       - name: Typecheck
         run: npm run typecheck
