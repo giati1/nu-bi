@@ -57,12 +57,14 @@ const patchedFunction = `async function patchCache(code, config) {
 }`;
 
 if (!fs.existsSync(targetFile)) {
+  console.log("OpenNext adapter not installed yet; skipping compatibility patch.");
   process.exit(0);
 }
 
 const current = fs.readFileSync(targetFile, "utf8");
 
 if (current.includes('const incrementalCacheHandlerPath = "./" + cacheHandlerFileBase + ".cjs";')) {
+  console.log("OpenNext compatibility patch already present.");
   process.exit(0);
 }
 
@@ -73,3 +75,4 @@ if (!patchCachePattern.test(current)) {
 }
 
 fs.writeFileSync(targetFile, current.replace(patchCachePattern, patchedFunction));
+console.log("Applied OpenNext compatibility patch for Next 13.5.11 incremental cache handling.");
