@@ -1,0 +1,16 @@
+name = "nu-bi"
+main = ".open-next/worker.js"
+compatibility_date = "2026-03-26"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nu-bi"
+database_id = "replace-me"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "nu-bi-media"
