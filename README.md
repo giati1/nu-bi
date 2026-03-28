@@ -1,210 +1,185 @@
 # NOMI
 
-NOMI is a full-stack social product built with Next.js App Router, TypeScript, and Tailwind CSS. The visible brand is `NOMI`, while the internal repo, folder, database, and infrastructure names intentionally remain `nu-bi`.
+NOMI is a Next.js App Router application built with TypeScript and Tailwind CSS. The visible product name is `NOMI`. The internal repo, Worker, D1, R2, and cookie names remain `nu-bi` on purpose.
 
-This Phase 2 pass finishes the platform foundation for:
+This repo is set up for two separate runtime paths:
 
-- stable local Node development
-- Cloudflare Workers deployment via OpenNext
-- explicit D1 and R2 runtime separation
-- clean local, preview, and production environment handling
-- CI validation and GitHub deploy scaffolding
+- local Node development on `http://localhost:8000`
+- Cloudflare preview and production deployment via OpenNext for Cloudflare
 
-## What Is Implemented
+## Current deployment strategy
 
-- Local app development on Next.js App Router
-- Local SQLite database with auto-applied SQL migrations
-- Local filesystem uploads in `public/uploads`
-- Runtime-aware D1 adapter path for Cloudflare
-- Runtime-aware R2 adapter path for Cloudflare
-- Worker-safe media delivery through `/api/media/[key]`
-- Local dev scripts with predictable default port handling
-- GitHub validation workflow
-- Manual GitHub deploy workflow scaffold for Cloudflare
-- `wrangler.jsonc` config with production and preview binding sections
+This repo is pinned to the stable path that keeps local development intact on the current workstation:
 
-## What Is Scaffolded
+- Next.js `13.5.11`
+- `@opennextjs/cloudflare` `0.2.1`
+- `wrangler` `3.114.17`
 
-- real Cloudflare D1 database IDs
-- real Cloudflare R2 buckets and public media domain
-- Cloudflare secrets such as `OPENAI_API_KEY`
-- GitHub repository secrets for deploy automation
+Why this path:
 
-## Version Decisions
+- the repo already runs locally on Node `18.14.0`
+- newer OpenNext releases target newer Next.js lines
+- upgrading Next.js to the modern OpenNext path would also force a local Node upgrade and risk breaking the current dev flow
 
-- App runtime remains on Next.js `13.5.11` to preserve current product behavior and avoid a risky framework upgrade during infrastructure work.
-- Local app development remains compatible with Node `18.14+`.
-- Cloudflare build and deploy tooling in this repo currently requires Node `20.3+`.
-- That means:
-  - `npm run dev`, `npm run db:init`, and `npm run db:seed` can keep running on the local workstation
-  - `npm run cf:*` commands should run under Node 20+, typically in GitHub Actions or a newer shell environment
+## Runtime model
 
-## Runtime Model
-
-### Local Node development
+### Local development
 
 - command: `npm run dev`
-- env source: `.env.local`
+- URL: `http://localhost:8000`
+- env file: `.env.local`
 - database: SQLite at `db/local.sqlite`
 - storage: local filesystem at `public/uploads`
 
-### Local Worker preview
+### Cloudflare preview / staging
 
 - command: `npm run cf:preview`
-- env source: `.dev.vars`
-- database: D1 binding `DB`
-- storage: R2 binding `MEDIA`
-- runtime: Wrangler + Worker preview
+- URL: `http://127.0.0.1:8787`
+- env file: `.dev.vars`
+- database binding: `DB`
+- storage binding: `MEDIA`
+- Worker config: `wrangler.jsonc`
+- OpenNext output: `.worker-next`
+
+Windows note:
+
+- `next build` validates cleanly on this repo from Windows
+- the legacy OpenNext Cloudflare adapter still throws `Patch \`patchCache\` not applied` on this Windows host during `npm run cf:build`
+- use GitHub Actions on `ubuntu-latest` or a Linux/WSL shell for the final Cloudflare preview deploy
 
 ### Cloudflare production
 
 - command: `npm run cf:deploy`
-- env source: `wrangler.jsonc` vars + Cloudflare secrets
-- database: D1 binding `DB`
-- storage: R2 binding `MEDIA`
+- env source: `wrangler.jsonc` vars plus Cloudflare secrets
+- database binding: `DB`
+- storage binding: `MEDIA`
 
-## Important Files
+## Important files
 
-- [package.json](./package.json)
-- [wrangler.jsonc](./wrangler.jsonc)
-- [next.config.js](./next.config.js)
-- [lib/config/env.ts](./lib/config/env.ts)
-- [lib/db/client.ts](./lib/db/client.ts)
-- [lib/storage/index.ts](./lib/storage/index.ts)
-- [lib/auth/session.ts](./lib/auth/session.ts)
-- [.env.example](./.env.example)
-- [.dev.vars.example](./.dev.vars.example)
-- [.github/workflows/validate.yml](./.github/workflows/validate.yml)
-- [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml)
-- [AGENTS.md](./AGENTS.md)
+- `package.json`
+- `wrangler.jsonc`
+- `.env.example`
+- `.dev.vars.example`
+- `lib/config/env.ts`
+- `lib/db/client.ts`
+- `lib/storage/index.ts`
+- `lib/cloudflare/context.ts`
+- `.github/workflows/validate.yml`
+- `.github/workflows/deploy-cloudflare.yml`
+- `AGENTS.md`
 
-## Local Setup
+## Local setup
 
-1. Install dependencies:
+Install dependencies:
 
 ```powershell
 cd C:\Users\cedri_vq8ow\nu-bi
 npm install
 ```
 
-2. Create local env:
+Create local env:
 
 ```powershell
 copy .env.example .env.local
 ```
 
-3. Initialize the local database:
+Initialize the local database:
 
 ```powershell
 npm run db:init
 ```
 
-4. Seed demo data if needed:
+Seed demo data if needed:
 
 ```powershell
 npm run db:seed
 ```
 
-5. Start local development:
+Start local development:
 
 ```powershell
 npm run dev
 ```
 
-Default local URL:
-
-- `http://localhost:8000`
-
-If you want a different local port:
+The default local port is pinned to `8000`. To override it for a one-off run:
 
 ```powershell
 $env:PORT=3000
 npm run dev
 ```
 
-## Local Validation
+## Validation
 
-Run the main validation commands:
+Run the main local checks:
 
 ```powershell
 npm run typecheck
 npm run build
 ```
 
-`npm run build` validates the Next.js production build locally. `npm run cf:*` commands are a separate Cloudflare toolchain path and require Node 20.3+.
-
-## Environment Files
-
-### `.env.local`
-
-Used by:
-
-- `npm run dev`
-- local SQLite
-- local filesystem uploads
-
-Create it from:
+Build the Cloudflare Worker bundle:
 
 ```powershell
-copy .env.example .env.local
+npm run cf:build
 ```
 
-### `.dev.vars`
+If you are running the Cloudflare build from this Windows workstation and hit `Patch \`patchCache\` not applied`, run the same command from Linux/WSL or use the GitHub deploy workflow instead.
 
-Used by:
+## Cloudflare files and bindings
 
-- `npm run cf:preview`
-- local Worker preview
+`wrangler.jsonc` is the source of truth for Worker bindings.
 
-Create it from:
+Production bindings:
+
+- D1 binding: `DB`
+- R2 binding: `MEDIA`
+
+Preview bindings:
+
+- D1 binding: `DB`
+- R2 binding: `MEDIA`
+
+Local Worker preview values come from `.dev.vars`. Bindings do not belong in `.dev.vars`; Wrangler provides them from `wrangler.jsonc`.
+
+## Create `.dev.vars`
+
+Create the preview env file:
 
 ```powershell
 copy .dev.vars.example .dev.vars
 ```
 
-Important:
+Recommended `.dev.vars` usage:
 
-- `DB` and `MEDIA` are not set in `.dev.vars`
-- those are Wrangler bindings from `wrangler.jsonc`
+- keep `DATABASE_DRIVER=d1`
+- keep `STORAGE_DRIVER=r2`
+- set `NEXT_PUBLIC_APP_URL=http://127.0.0.1:8787`
+- set secrets such as `OPENAI_API_KEY` only if that feature is needed in preview
 
-### Cloudflare runtime vars and secrets
-
-Used by:
-
-- `npm run cf:deploy`
-- deployed Worker runtime
-
-Set secrets with Wrangler or the Cloudflare dashboard, for example:
-
-```powershell
-npx wrangler secret put OPENAI_API_KEY
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-```
-
-## Cloudflare Login
+## Cloudflare login
 
 ```powershell
 npx wrangler login
 ```
 
-## D1 Setup
+## D1 setup
 
-Create production D1:
-
-```powershell
-npx wrangler d1 create nu-bi
-```
-
-Create preview D1:
+Create the production database:
 
 ```powershell
-npx wrangler d1 create nu-bi-preview
+npm run d1:create
 ```
 
-Then copy the returned `database_id` values into [wrangler.jsonc](./wrangler.jsonc):
+Create the preview database:
 
-- production `database_id`
-- preview `env.preview.d1_databases[0].database_id`
+```powershell
+npm run d1:create:preview
+```
+
+After each command, Cloudflare returns a `database_id`. Copy those IDs into `wrangler.jsonc`:
+
+- production: `d1_databases[0].database_id`
+- preview: `env.preview.d1_databases[0].database_id`
 
 Apply production migrations:
 
@@ -218,140 +193,171 @@ Apply preview migrations:
 npm run cf:migrate:preview
 ```
 
-## R2 Setup
+All SQL migrations must stay in:
 
-Create production bucket:
-
-```powershell
-npx wrangler r2 bucket create nu-bi-media
+```text
+db/migrations
 ```
 
-Create preview bucket:
+## R2 setup
+
+Create the production bucket:
 
 ```powershell
-npx wrangler r2 bucket create nu-bi-media-preview
+npm run r2:create
 ```
 
-If you use different bucket names, update [wrangler.jsonc](./wrangler.jsonc) to match.
-
-## Cloudflare Preview
-
-1. Make sure `.dev.vars` exists:
+Create the preview bucket:
 
 ```powershell
-copy .dev.vars.example .dev.vars
+npm run r2:create:preview
 ```
 
-2. Make sure preview D1 and preview R2 bindings exist in [wrangler.jsonc](./wrangler.jsonc)
+If you choose different bucket names, update `wrangler.jsonc` to match:
 
-3. Run preview:
+- `r2_buckets[0].bucket_name`
+- `r2_buckets[0].preview_bucket_name`
+- `env.preview.r2_buckets[0].bucket_name`
+- `env.preview.r2_buckets[0].preview_bucket_name`
+
+## Cloudflare secrets
+
+Set runtime secrets with Wrangler. These are not stored in `wrangler.jsonc`.
+
+Production examples:
+
+```powershell
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+```
+
+Preview examples:
+
+```powershell
+npx wrangler secret put OPENAI_API_KEY --env preview
+npx wrangler secret put GOOGLE_CLIENT_SECRET --env preview
+```
+
+Common secrets and vars to review before deploy:
+
+- `OPENAI_API_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `R2_PUBLIC_BASE_URL`
+- any future auth or API keys added to `.env.example`
+
+## Preview / staging deployment
+
+Build the Worker bundle:
+
+```powershell
+npm run cf:build
+```
+
+Run the local Worker preview:
 
 ```powershell
 npm run cf:preview
 ```
 
-Preview URL:
-
-- `http://127.0.0.1:8787`
-
-## Cloudflare Production Deploy
-
-1. Ensure Node 20.3+ is active
-2. Ensure `wrangler.jsonc` contains real D1 IDs and bucket names
-3. Ensure required Cloudflare secrets are configured
-4. Build and deploy:
-
-```powershell
-npm run cf:build
-npm run cf:deploy
-```
-
-To deploy preview explicitly:
+Deploy the preview environment:
 
 ```powershell
 npm run cf:deploy:preview
 ```
 
-## GitHub Workflow
+What this gives you:
 
-### Validation
+- local preview in the Workers runtime on `127.0.0.1:8787`
+- a remote preview/staging Worker using the `preview` binding block in `wrangler.jsonc`
+- D1 and R2 separated from local SQLite and local uploads
 
-Workflow file:
+## Production deployment
 
-- [.github/workflows/validate.yml](./.github/workflows/validate.yml)
+Deploy production:
 
-It runs:
+```powershell
+npm run cf:deploy
+```
 
-- `npm ci`
-- `npm run typecheck`
-- `npm run build`
+## GitHub Actions
 
-### Cloudflare deploy
+Validation workflow:
 
-Workflow file:
+- file: `.github/workflows/validate.yml`
+- runs `npm ci`, `npm run typecheck`, and `npm run build`
 
-- [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml)
+Cloudflare deploy workflow:
+
+- file: `.github/workflows/deploy-cloudflare.yml`
+- manual dispatch with `preview` or `production`
 
 Required GitHub secrets:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-Recommended process:
+If you want GitHub Actions deployments to succeed, the committed `wrangler.jsonc` must already contain real D1 IDs and the correct bucket names.
 
-1. merge to `main`
-2. run the manual deploy workflow
-3. choose `preview` or `production`
+## Manual Cloudflare checklist
 
-## Rollback / Recovery Basics
+You still need to do these actions in your Cloudflare account:
 
-If a deploy goes bad:
+1. Log in with Wrangler.
+2. Create production D1.
+3. Create preview D1.
+4. Paste both D1 IDs into `wrangler.jsonc`.
+5. Create production R2.
+6. Create preview R2.
+7. Confirm bucket names in `wrangler.jsonc`.
+8. Create required secrets for production.
+9. Create required secrets for preview.
+10. Apply D1 migrations to both environments.
+11. Run `npm run cf:deploy:preview`.
 
-1. redeploy the last known good commit from GitHub Actions or locally
-2. if the issue is schema-related, stop and inspect the last migration applied to D1 before pushing another deploy
-3. if the issue is storage-related, verify the `MEDIA` binding and bucket names in Cloudflare before changing application code
-4. use `npm run dev` or `npm run cf:preview` to reproduce locally before retrying production
+## Exact commands
 
-## Notes For Future Passes
-
-- Brand is `NOMI`
-- Internal repo and infrastructure names remain `nu-bi`
-- Mobile layout is sensitive
-- Do not casually blur local SQLite/local uploads with D1/R2 runtime code
-- Cloudflare deploy tooling is Node 20+, but local app development can remain on Node 18.14+
-
-## Recommended Next Commands
-
-For local app work:
+Initial local setup:
 
 ```powershell
 cd C:\Users\cedri_vq8ow\nu-bi
+npm install
+copy .env.example .env.local
+copy .dev.vars.example .dev.vars
+npm run db:init
 npm run typecheck
 npm run build
-npm run db:init
-npm run dev
 ```
 
-For Cloudflare setup:
+Cloudflare resource setup:
 
 ```powershell
 npx wrangler login
-npx wrangler d1 create nu-bi
-npx wrangler d1 create nu-bi-preview
-npx wrangler r2 bucket create nu-bi-media
-npx wrangler r2 bucket create nu-bi-media-preview
+npm run d1:create
+npm run d1:create:preview
+npm run r2:create
+npm run r2:create:preview
+```
+
+After pasting the D1 IDs into `wrangler.jsonc`, apply migrations:
+
+```powershell
 npm run cf:migrate:production
 npm run cf:migrate:preview
 ```
 
-For Cloudflare preview or deploy:
-
-```powershell
-copy .dev.vars.example .dev.vars
-npm run cf:preview
-```
+Preview and deploy:
 
 ```powershell
 npm run cf:build
+npm run cf:preview
+npm run cf:deploy:preview
+```
+
+If you are invoking the Cloudflare path from GitHub Actions instead of the local Windows shell, use the existing manual workflow in `.github/workflows/deploy-cloudflare.yml` and choose `preview`.
+
+Production deploy:
+
+```powershell
 npm run cf:deploy
 ```

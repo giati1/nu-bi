@@ -14,14 +14,13 @@
     "check": "npm run typecheck && npm run build",
     "db:init": "tsx scripts/init-db.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "cf:preflight": "node scripts/require-node.mjs 20.3.0",
-    "cf:build": "npm run cf:preflight && opennextjs-cloudflare build",
-    "cf:preview": "npm run cf:build && wrangler dev --env preview",
+    "cf:build": "cloudflare",
+    "cf:preview": "npm run cf:build && wrangler dev --env preview --port 8787",
     "cf:deploy": "npm run cf:build && wrangler deploy",
     "cf:deploy:preview": "npm run cf:build && wrangler deploy --env preview",
-    "cf:typegen": "npm run cf:preflight && wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "cf:migrate:production": "npm run cf:preflight && wrangler d1 migrations apply nu-bi --remote",
-    "cf:migrate:preview": "npm run cf:preflight && wrangler d1 migrations apply nu-bi-preview --remote --env preview",
+    "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cf:migrate:production": "wrangler d1 migrations apply nu-bi --remote",
+    "cf:migrate:preview": "wrangler d1 migrations apply nu-bi-preview --remote --env preview",
     "d1:create": "wrangler d1 create nu-bi",
     "d1:create:preview": "wrangler d1 create nu-bi-preview",
     "r2:create": "wrangler r2 bucket create nu-bi-media",
@@ -32,14 +31,14 @@
     "clsx": "^2.1.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.511.0",
-    "next": "^13.5.11",
+    "next": "13.5.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sqlite3": "^5.1.7",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.0.0",
+    "@opennextjs/cloudflare": "0.2.1",
     "@types/node": "^22.14.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -48,6 +47,6 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
-    "wrangler": "^4.11.1"
+    "wrangler": "3.114.17"
   }
 }
