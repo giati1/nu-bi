@@ -48,7 +48,7 @@ const fallbackAdapter: NuBiAIAdapter = {
     return `I see the argument. The part worth pressure-testing is execution quality and whether users feel the difference immediately.`;
   },
   async rewriteProfile({ displayName, bio, website, location, vibe }) {
-    const cleanName = displayName.trim() || "Nu-bi user";
+    const cleanName = displayName.trim() || "NOMI user";
     const cleanBio = bio.trim();
     const sitePart = website ? ` Building from ${website.replace(/^https?:\/\//, "")}.` : "";
     const locationPart = location ? ` Based in ${location}.` : "";
@@ -56,7 +56,7 @@ const fallbackAdapter: NuBiAIAdapter = {
       displayName: cleanName,
       bio:
         cleanBio ||
-        `${cleanName} is shaping a ${vibe} presence on Nu-bi.${sitePart}${locationPart} Focused, credible, and easy to remember.`
+        `${cleanName} is shaping a ${vibe} presence on NOMI.${sitePart}${locationPart} Focused, credible, and easy to remember.`
     };
   },
   async summarizeInbox({ ownerDisplayName, conversations }) {

@@ -31,7 +31,7 @@ export default async function HomePage() {
             <div className="mt-4 rounded-[24px] border border-accent/20 bg-accent/5 p-4">
               <p className="text-base font-semibold">Launch faster with AI Studio</p>
               <p className="mt-2 text-sm text-white/60">
-                Rewrite captions, draft replies, and generate branded images without leaving Nu-bi.
+                Rewrite captions, draft replies, and generate branded images without leaving NOMI.
               </p>
               <Link
                 className="mt-4 inline-flex rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white"
@@ -89,7 +89,7 @@ export default async function HomePage() {
                 <div className="rounded-2xl border border-white/10 p-3" key={notification.id}>
                   <p>
                     <span className="font-medium">
-                      {notification.actor?.displayName ?? "Nu-bi"}
+                      {notification.actor?.displayName ?? "NOMI"}
                     </span>{" "}
                     triggered a {notification.type} notification.
                   </p>
@@ -118,7 +118,7 @@ export default async function HomePage() {
         <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
         <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0 max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.28em] text-accent-soft">Today on NU-BI</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-accent-soft">Today on NOMI</p>
             <h3 className="mt-3 break-words text-2xl font-semibold leading-tight md:text-3xl">Post faster, cut cleaner, and publish short-form video from anywhere.</h3>
             <p className="mt-3 text-sm text-white/65 md:text-base">
               The new upload flow gives you in-app camera recording, trimming, filters, and faster routes into shorts.

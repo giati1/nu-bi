@@ -268,7 +268,7 @@ export function FeedComposer() {
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       <p className="mt-3 inline-flex items-center gap-2 text-xs text-white/45">
         <Clapperboard className="h-3.5 w-3.5" />
-        Nu-bi supports images plus short videos up to 30 seconds in `mp4`, `webm`, or `mov`.
+        NOMI supports images plus short videos up to 30 seconds in `mp4`, `webm`, or `mov`.
       </p>
     </form>
   );

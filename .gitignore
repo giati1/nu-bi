@@ -1,4 +1,6 @@
 .next
+.open-next
+.wrangler
 node_modules
 dist
 coverage
@@ -6,3 +8,5 @@ db/local.sqlite
 public/uploads/*
 !public/uploads/.gitkeep
 .env.local
+.dev.vars
+cloudflare-env.d.ts

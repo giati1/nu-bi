@@ -59,7 +59,7 @@ export function SiteNav() {
           <BrandMark />
           <h1 className="mt-5 text-3xl font-bold">Signal-first identity.</h1>
           <p className="mt-2 text-sm text-white/65">
-            NU-BI brings feed, shorts, messages, creator tools, and AI into one social layer.
+            NOMI brings feed, shorts, messages, creator tools, and AI into one social layer.
           </p>
           <button
             className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black"

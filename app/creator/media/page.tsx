@@ -17,7 +17,7 @@ export default async function CreatorMediaPage() {
   return (
     <AppShell
       title="Media Library"
-      subtitle="Review every uploaded image and short-form video connected to your Nu-bi posts."
+      subtitle="Review every uploaded image and short-form video connected to your NOMI posts."
     >
       <div className="flex flex-wrap gap-3">
         <Link className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75" href="/creator">

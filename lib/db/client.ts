@@ -1,25 +1,39 @@
-import fs from "fs/promises";
-import path from "path";
-import sqlite3 from "sqlite3";
 import { env } from "@/lib/config/env";
+import { getCloudflareBindings } from "@/lib/cloudflare/context";
 
 type RunResult = {
   lastID: number;
   changes: number;
 };
 
-let database: sqlite3.Database | null = null;
-let setupPromise: Promise<void> | null = null;
+type SqliteDatabase = {
+  run: (
+    sql: string,
+    params: unknown[],
+    callback: (this: { lastID: number; changes: number }, error: Error | null) => void
+  ) => void;
+  get: (sql: string, params: unknown[], callback: (error: Error | null, row?: unknown) => void) => void;
+  all: (sql: string, params: unknown[], callback: (error: Error | null, rows?: unknown[]) => void) => void;
+  exec: (sql: string, callback: (error: Error | null) => void) => void;
+};
 
-function getDatabase() {
-  if (!database) {
-    database = new sqlite3.Database(env.databasePath);
-  }
-  return database;
+let sqliteDatabase: SqliteDatabase | null = null;
+let sqliteSetupPromise: Promise<void> | null = null;
+
+function getD1Database() {
+  return getCloudflareBindings()?.DB ?? null;
 }
 
-async function rawRun(sql: string, params: unknown[] = []) {
-  const db = getDatabase();
+async function getSqliteDatabase() {
+  if (!sqliteDatabase) {
+    const sqlite3 = (await import("sqlite3")).default;
+    sqliteDatabase = new sqlite3.Database(env.databasePath) as unknown as SqliteDatabase;
+  }
+  return sqliteDatabase;
+}
+
+async function rawRunLocal(sql: string, params: unknown[] = []) {
+  const db = await getSqliteDatabase();
   return await new Promise<RunResult>((resolve, reject) => {
     db.run(sql, params, function onRun(error) {
       if (error) {
@@ -34,8 +48,8 @@ async function rawRun(sql: string, params: unknown[] = []) {
   });
 }
 
-async function rawGet<T>(sql: string, params: unknown[] = []) {
-  const db = getDatabase();
+async function rawGetLocal<T>(sql: string, params: unknown[] = []) {
+  const db = await getSqliteDatabase();
   return await new Promise<T | undefined>((resolve, reject) => {
     db.get(sql, params, (error, row) => {
       if (error) {
@@ -47,67 +61,8 @@ async function rawGet<T>(sql: string, params: unknown[] = []) {
   });
 }
 
-export async function ensureDatabase() {
-  if (!setupPromise) {
-    setupPromise = (async () => {
-      await fs.mkdir(path.dirname(env.databasePath), { recursive: true });
-      const migrationsDir = path.resolve(process.cwd(), "db/migrations");
-      const files = (await fs.readdir(migrationsDir))
-        .filter((file) => file.endsWith(".sql"))
-        .sort();
-
-      await exec(
-        `CREATE TABLE IF NOT EXISTS schema_migrations (
-           id TEXT PRIMARY KEY,
-           applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-         )`
-      );
-
-      for (const file of files) {
-        const applied = await rawGet<{ id: string }>(
-          `SELECT id FROM schema_migrations WHERE id = ?`,
-          [file]
-        );
-        if (applied) {
-          continue;
-        }
-
-        const migration = await fs.readFile(path.join(migrationsDir, file), "utf8");
-        await exec(migration);
-        await rawRun(`INSERT INTO schema_migrations (id) VALUES (?)`, [file]);
-      }
-    })();
-  }
-
-  await setupPromise;
-}
-
-export async function exec(sql: string) {
-  const db = getDatabase();
-  await new Promise<void>((resolve, reject) => {
-    db.exec(sql, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
-export async function run(sql: string, params: unknown[] = []) {
-  await ensureDatabase();
-  return await rawRun(sql, params);
-}
-
-export async function get<T>(sql: string, params: unknown[] = []) {
-  await ensureDatabase();
-  return await rawGet<T>(sql, params);
-}
-
-export async function all<T>(sql: string, params: unknown[] = []) {
-  await ensureDatabase();
-  const db = getDatabase();
+async function rawAllLocal<T>(sql: string, params: unknown[] = []) {
+  const db = await getSqliteDatabase();
   return await new Promise<T[]>((resolve, reject) => {
     db.all(sql, params, (error, rows) => {
       if (error) {
@@ -119,7 +74,121 @@ export async function all<T>(sql: string, params: unknown[] = []) {
   });
 }
 
+async function rawExecLocal(sql: string) {
+  const db = await getSqliteDatabase();
+  await new Promise<void>((resolve, reject) => {
+    db.exec(sql, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function ensureLocalDatabase() {
+  if (!sqliteSetupPromise) {
+    sqliteSetupPromise = (async () => {
+      const fs = await import("fs/promises");
+      const path = await import("path");
+
+      await fs.mkdir(path.dirname(env.databasePath), { recursive: true });
+      const migrationsDir = path.resolve(process.cwd(), "db/migrations");
+      const files = (await fs.readdir(migrationsDir))
+        .filter((file) => file.endsWith(".sql"))
+        .sort();
+
+      await rawExecLocal(
+        `CREATE TABLE IF NOT EXISTS schema_migrations (
+           id TEXT PRIMARY KEY,
+           applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+         )`
+      );
+
+      for (const file of files) {
+        const applied = await rawGetLocal<{ id: string }>(
+          `SELECT id FROM schema_migrations WHERE id = ?`,
+          [file]
+        );
+        if (applied) {
+          continue;
+        }
+
+        const migration = await fs.readFile(path.join(migrationsDir, file), "utf8");
+        await rawExecLocal(migration);
+        await rawRunLocal(`INSERT INTO schema_migrations (id) VALUES (?)`, [file]);
+      }
+    })();
+  }
+
+  await sqliteSetupPromise;
+}
+
+export async function ensureDatabase() {
+  if (getD1Database()) {
+    return;
+  }
+  await ensureLocalDatabase();
+}
+
+export async function exec(sql: string) {
+  const d1 = getD1Database();
+  if (d1) {
+    await d1.exec(sql);
+    return;
+  }
+  await ensureLocalDatabase();
+  await rawExecLocal(sql);
+}
+
+export async function run(sql: string, params: unknown[] = []) {
+  const d1 = getD1Database();
+  if (d1) {
+    const result = await d1.prepare(sql).bind(...params).run();
+    return {
+      lastID: Number(result.meta?.last_row_id ?? 0),
+      changes: Number(result.meta?.changes ?? 0)
+    } satisfies RunResult;
+  }
+  await ensureLocalDatabase();
+  return await rawRunLocal(sql, params);
+}
+
+export async function get<T>(sql: string, params: unknown[] = []) {
+  const d1 = getD1Database();
+  if (d1) {
+    const result = await d1.prepare(sql).bind(...params).first<T>();
+    return (result ?? undefined) as T | undefined;
+  }
+  await ensureLocalDatabase();
+  return await rawGetLocal<T>(sql, params);
+}
+
+export async function all<T>(sql: string, params: unknown[] = []) {
+  const d1 = getD1Database();
+  if (d1) {
+    const result = await d1.prepare(sql).bind(...params).all<T>();
+    return result.results ?? [];
+  }
+  await ensureLocalDatabase();
+  return await rawAllLocal<T>(sql, params);
+}
+
 export async function transaction<T>(callback: () => Promise<T>) {
+  const d1 = getD1Database();
+  if (d1) {
+    await d1.exec("BEGIN TRANSACTION");
+    try {
+      const result = await callback();
+      await d1.exec("COMMIT");
+      return result;
+    } catch (error) {
+      await d1.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   await run("BEGIN");
   try {
     const result = await callback();

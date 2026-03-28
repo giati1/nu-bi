@@ -44,7 +44,7 @@ async function main() {
     (await createUser({
       email: "master@nubi.com",
       username: "nubi",
-      displayName: "NU-BI",
+      displayName: "NOMI",
       passwordHash
     }));
 
@@ -68,7 +68,7 @@ async function main() {
     lina.id
   ]);
   await run(`UPDATE profiles SET bio = ?, location = ?, website = ?, is_private = 0 WHERE user_id = ?`, [
-    "Official NU-BI account for platform-wide announcements, launches, creator spotlights, and public updates.",
+    "Official NOMI account for platform-wide announcements, launches, creator spotlights, and public updates.",
     "Global",
     "https://knowme.nu-bi.com",
     nubi.id
@@ -83,7 +83,7 @@ async function main() {
 
   const postOne = await createPost({
     userId: kade.id,
-    body: "Nu-bi should feel fast, cinematic, and socially native on the very first screen."
+    body: "NOMI should feel fast, cinematic, and socially native on the very first screen."
   });
   const postTwo = await createPost({
     userId: lina.id,
@@ -91,7 +91,7 @@ async function main() {
   });
   await createPost({
     userId: nubi.id,
-    body: "Welcome to the official NU-BI account. Use this profile for platform announcements, public drops, and updates everyone should see."
+    body: "Welcome to the official NOMI account. Use this profile for platform announcements, public drops, and updates everyone should see."
   });
 
   if (postOne) {
@@ -118,7 +118,7 @@ async function main() {
     body: "Agreed. Once the storage and D1 bindings are live, we can point the same hostname at the Cloudflare deploy."
   });
 
-  console.log("Nu-bi seed data created.");
+  console.log("NOMI seed data created.");
 }
 
 void main();

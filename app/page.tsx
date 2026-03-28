@@ -23,7 +23,7 @@ export default function LandingPage() {
         <section className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
           <div className="space-y-6">
             <p className="max-w-2xl text-lg text-white/72 md:text-xl">
-              NU-BI blends public identity, direct messaging, short-form video, creator tooling, and AI assistance into one serious social product.
+              NOMI blends public identity, direct messaging, short-form video, creator tooling, and AI assistance into one serious social product.
             </p>
             <div className="grid gap-4 md:grid-cols-3">
               {[

@@ -1,16 +1,26 @@
 name = "nu-bi"
 main = ".open-next/worker.js"
-compatibility_date = "2026-03-26"
+compatibility_date = "2026-03-27"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[vars]
+NODE_ENV = "production"
+DATABASE_DRIVER = "d1"
+STORAGE_DRIVER = "r2"
+NEXT_PUBLIC_MEDIA_BASE_PATH = "/api/media"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "nu-bi"
-database_id = "replace-me"
+database_id = "replace-with-real-d1-id"
+migrations_dir = "db/migrations"
 
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "nu-bi-media"
+preview_bucket_name = "nu-bi-media-preview"

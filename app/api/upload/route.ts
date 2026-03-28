@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
 import { saveUploadedFile } from "@/lib/storage";
 
-export const runtime = "nodejs";
-
 export async function POST(request: Request) {
   try {
     await requireViewer();

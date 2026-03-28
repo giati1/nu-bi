@@ -1,152 +1,286 @@
-# Nu-bi
+# NOMI
 
-Nu-bi is a production-leaning MVP for an AI-ready social platform built with Next.js, TypeScript, Tailwind CSS, SQLite for local development, and a D1-compatible SQL schema for Cloudflare deployment.
+NOMI is a full-stack social product built with Next.js App Router, TypeScript, Tailwind CSS, and a repository-based data layer. The app still supports local SQLite and filesystem uploads for development, but it is now structured to deploy on Cloudflare Workers with D1 and R2.
+
+Internal repo, folder, and infrastructure names intentionally remain `nu-bi` for now.
+
+## What Changed In This Migration
+
+- Database access is now runtime-aware:
+  - local development uses SQLite through `sqlite3`
+  - Cloudflare deployment uses the `DB` D1 binding
+- Storage is now runtime-aware:
+  - local development uses `public/uploads`
+  - Cloudflare deployment uses the `MEDIA` R2 binding
+- Media delivery now has a Worker-safe route fallback:
+  - `/api/media/[key]`
+- Cloudflare deployment scaffolding is now included:
+  - `wrangler.toml`
+  - `open-next.config.mjs`
+  - OpenNext Cloudflare build scripts
+- Local development remains intact:
+  - `npm run dev`
+  - `npm run db:init`
+  - `npm run db:seed`
 
 ## Architecture
 
-- `app/`: Next.js App Router pages and API routes.
-- `components/`: reusable UI for auth, feed, profile, messaging, and interactions.
-- `lib/auth/`: session cookies and password hashing.
-- `lib/db/`: SQLite client plus repository methods for auth, feed, social graph, comments, messaging, notifications, search, and reports.
-- `lib/storage/`: local media uploads with an R2-ready interface contract.
-- `lib/ai/`: ranking, moderation, post analysis, message tone, and assistant integration hooks.
-- `db/migrations/001_init.sql`: D1-compatible schema with indexes and foreign keys.
-- `scripts/`: local DB initialization and seed scripts.
+- `app/`: Next.js pages and route handlers
+- `components/`: feed, profile, inbox, creator, and media UI
+- `lib/auth/`: password hashing, session creation, cookie/session lookup
+- `lib/cloudflare/`: Cloudflare runtime binding access
+- `lib/config/`: shared environment resolution
+- `lib/db/`: runtime-aware DB adapter and repository methods
+- `lib/storage/`: runtime-aware local/R2 media storage
+- `lib/ai/`: AI helpers and adapter abstraction
+- `db/migrations/`: schema for local SQLite and D1
+- `scripts/`: local DB bootstrapping and seeding
 
-## Fully implemented
+## Runtime Model
 
-- Email/password sign up, log in, log out, and cookie-backed sessions.
-- Protected routes with middleware.
-- Public landing page and protected app experience.
-- Home feed with followed-user preference and discovery fallback.
-- Post creation with text, image upload, repost support, and delete-own-post.
-- Profiles with counts, bio, avatar, follow/unfollow, and user post history.
-- Likes, comments, reports, notifications, and search.
-- One-to-one direct messaging with unread tracking.
-- Local file uploads saved into `public/uploads`.
-- AI-ready interfaces for feed ranking, moderation scoring, post analysis, and message tone.
+### Local development
 
-## Scaffolded but ready for extension
+- `DATABASE_DRIVER=sqlite`
+- `STORAGE_DRIVER=local`
+- SQLite file at `db/local.sqlite`
+- uploads written to `public/uploads`
 
-- Google OAuth environment/config placeholders.
-- Cloudflare Worker deployment path via `wrangler.toml`.
-- R2 production media binding through the storage abstraction.
-- D1 production binding with the same SQL schema.
-- Rich AI assistants and ranking logic behind `lib/ai/`.
+### Cloudflare deployment
 
-## Local setup
+- `DATABASE_DRIVER=d1`
+- `STORAGE_DRIVER=r2`
+- D1 bound as `DB`
+- R2 bound as `MEDIA`
+- OpenNext builds the Worker entry at `.open-next/worker.js`
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local` for local development.
+
+Key variables:
+
+- `NEXT_PUBLIC_APP_URL`
+- `DATABASE_DRIVER`
+- `DATABASE_PATH`
+- `STORAGE_DRIVER`
+- `UPLOADS_DIR`
+- `NEXT_PUBLIC_STORAGE_BASE_PATH`
+- `NEXT_PUBLIC_MEDIA_BASE_PATH`
+- `SESSION_COOKIE_NAME`
+- `SESSION_MAX_AGE_DAYS`
+- `R2_PUBLIC_BASE_URL`
+- `OPENAI_API_KEY`
+
+For Cloudflare preview or Worker-local testing, copy `.dev.vars.example` to `.dev.vars`.
+
+## Local Development
 
 1. Install dependencies:
 
-```bash
+```powershell
+cd C:\Users\cedri_vq8ow\nu-bi
 npm install
 ```
 
 2. Create local env:
 
-```bash
+```powershell
 copy .env.example .env.local
 ```
 
-On this machine the file lives at:
-
-- `C:\Users\cedri_vq8ow\nu-bi\.env.local`
-
-You can edit it with:
+3. Initialize local SQLite:
 
 ```powershell
-notepad C:\Users\cedri_vq8ow\nu-bi\.env.local
-```
-
-For live OpenAI-backed AI features, add:
-
-```env
-OPENAI_API_KEY=your_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_TEXT_MODEL=gpt-4.1-mini
-OPENAI_IMAGE_MODEL=gpt-4.1
-```
-
-3. Initialize the database:
-
-```bash
 npm run db:init
 ```
 
-4. Optional demo data:
+4. Seed demo data if needed:
 
-```bash
+```powershell
 npm run db:seed
 ```
 
-5. Start the app:
+5. Start local dev:
 
-```bash
+```powershell
 npm run dev
 ```
 
-Nu-bi runs on `http://localhost:8000`.
+Local app:
 
-## Demo accounts after seeding
+- `http://localhost:8000`
+
+## Demo Accounts
 
 - `aria@nubi.com` / `Password123!`
 - `kade@nubi.com` / `Password123!`
 - `lina@nubi.com` / `Password123!`
-- `master@nubi.com` / `Password123!`  `NU-BI` master account
+- `master@nubi.com` / `Password123!`
 
-## Exact connection path
+## GitHub Push Flow
 
-The existing Cloudflare tunnel already maps:
-
-- Hostname: `knowme.nu-bi.com`
-- Local target: `http://localhost:8000`
-- Tunnel config file: `C:\Users\cedri_vq8ow\.cloudflared\config.yml`
-
-To use that existing connection locally:
-
-1. Run Nu-bi with `npm run dev` from `C:\Users\cedri_vq8ow\nu-bi`
-2. Start the tunnel with the existing script:
+1. Create a GitHub repo.
+2. Add the remote:
 
 ```powershell
-.\start-tunnel.ps1
+git remote add origin <YOUR_GITHUB_REPO_URL>
 ```
 
-3. Verify locally:
+3. Commit your work:
 
-- `http://localhost:8000`
-- `http://localhost:8000/login`
-- `http://localhost:8000/home`
+```powershell
+git add .
+git commit -m "Prepare NOMI for Cloudflare deployment"
+```
 
-4. Verify through the tunnel:
+4. Push:
 
-- `https://knowme.nu-bi.com`
-- `https://knowme.nu-bi.com/login`
-- `https://knowme.nu-bi.com/home`
+```powershell
+git push -u origin main
+```
 
-## Cloudflare deployment notes
+## Cloudflare Setup
 
-- The schema in [`db/migrations/001_init.sql`](./db/migrations/001_init.sql) is written to stay D1-compatible.
-- `wrangler.toml` includes D1 and R2 bindings you can replace with real IDs and bucket names.
-- For production media storage, swap the local upload behavior in [`lib/storage/index.ts`](./lib/storage/index.ts) to use the `MEDIA` R2 binding and `R2_PUBLIC_BASE_URL`.
-- For production sessions, the current cookie/session table design can remain unchanged when backed by D1.
+### 1. Install Wrangler
 
-## Key routes
+```powershell
+npm install
+```
 
-- `/`
-- `/login`
-- `/signup`
-- `/home`
-- `/profile/[username]`
-- `/settings/profile`
-- `/messages`
-- `/messages/[conversationId]`
-- `/search`
-- `/notifications`
-- `/post/[id]`
+Wrangler is included in `devDependencies`.
 
-## Useful checks
+### 2. Log into Cloudflare
 
-```bash
+```powershell
+npx wrangler login
+```
+
+### 3. Create D1
+
+```powershell
+npx wrangler d1 create nu-bi
+```
+
+Take the returned `database_id` and place it in [wrangler.toml](./wrangler.toml).
+
+### 4. Apply migrations to D1
+
+```powershell
+npx wrangler d1 migrations apply nu-bi --remote
+```
+
+This project stores migrations in `db/migrations`, and `wrangler.toml` is already configured to use that folder.
+
+### 5. Create R2 buckets
+
+```powershell
+npx wrangler r2 bucket create nu-bi-media
+npx wrangler r2 bucket create nu-bi-media-preview
+```
+
+If you use different names, update [wrangler.toml](./wrangler.toml).
+
+### 6. Configure secrets and vars
+
+Set any sensitive values as Cloudflare secrets:
+
+```powershell
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+```
+
+Non-secret runtime vars can stay in `wrangler.toml`, or you can manage them in the Cloudflare dashboard.
+
+Recommended production vars:
+
+- `NEXT_PUBLIC_APP_URL`
+- `DATABASE_DRIVER=d1`
+- `STORAGE_DRIVER=r2`
+- `NEXT_PUBLIC_MEDIA_BASE_PATH=/api/media`
+- `SESSION_COOKIE_NAME=nubi_session`
+- `SESSION_MAX_AGE_DAYS=14`
+- `R2_PUBLIC_BASE_URL` if using a public/custom R2 domain
+
+### 7. Build for Cloudflare
+
+```powershell
+npm run cf:build
+```
+
+### 8. Preview locally with Worker runtime
+
+```powershell
+copy .dev.vars.example .dev.vars
+npm run cf:preview
+```
+
+### 9. Deploy
+
+```powershell
+npm run cf:deploy
+```
+
+## Notes On D1 And Local SQLite
+
+- Local dev still auto-applies migrations through `lib/db/client.ts`.
+- Cloudflare D1 does not auto-apply migrations on requests.
+- Use Wrangler migration commands for D1 changes.
+- This keeps local iteration fast without making production startup do schema work.
+
+## Notes On R2 And Media
+
+- Local uploads still use `public/uploads`.
+- Cloudflare uploads use `MEDIA.put(...)` when `STORAGE_DRIVER=r2` and the `MEDIA` binding exists.
+- If `R2_PUBLIC_BASE_URL` is set, uploaded files use that public URL.
+- If not, media can still be served through `/api/media/[key]`.
+
+## Performance Foundations Added
+
+- Worker-native DB path in production instead of local tunnel/database dependence
+- Worker-native storage path in production instead of local filesystem dependence
+- immutable cache headers for `_next/static` and local uploads in `public/_headers`
+- media route fallback so deployment is not blocked on public R2 domain setup
+
+## Important Files
+
+- [package.json](./package.json)
+- [next.config.js](./next.config.js)
+- [open-next.config.mjs](./open-next.config.mjs)
+- [wrangler.toml](./wrangler.toml)
+- [lib/config/env.ts](./lib/config/env.ts)
+- [lib/cloudflare/context.ts](./lib/cloudflare/context.ts)
+- [lib/db/client.ts](./lib/db/client.ts)
+- [lib/storage/index.ts](./lib/storage/index.ts)
+- [app/api/media/[key]/route.ts](./app/api/media/[key]/route.ts)
+- [.env.example](./.env.example)
+- [.dev.vars.example](./.dev.vars.example)
+
+## What Still Requires Manual Setup
+
+- real Cloudflare `database_id` in `wrangler.toml`
+- real R2 bucket names if different from defaults
+- Cloudflare secrets for OpenAI / OAuth if used
+- `npm install` to fetch `@opennextjs/cloudflare` and `wrangler`
+- optionally updating `package-lock.json` after installing the new Cloudflare dependencies
+
+## Recommended Next Commands
+
+```powershell
+cd C:\Users\cedri_vq8ow\nu-bi
+npm install
 npm run typecheck
-npm run build
+npm run db:init
+npm run dev
+```
+
+Then for Cloudflare:
+
+```powershell
+npx wrangler login
+npx wrangler d1 create nu-bi
+npx wrangler r2 bucket create nu-bi-media
+npx wrangler r2 bucket create nu-bi-media-preview
+npx wrangler d1 migrations apply nu-bi --remote
+npm run cf:build
+npm run cf:deploy
 ```

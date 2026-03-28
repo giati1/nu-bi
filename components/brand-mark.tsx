@@ -14,12 +14,12 @@ export function BrandMark({
         <div className="absolute left-2 top-2 h-3 w-3 rounded-full bg-white/90" />
         <div className="absolute bottom-2 right-2 h-5 w-5 rounded-full border border-white/15 bg-accent/80" />
         <div className="absolute inset-x-0 bottom-1 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/90">
-          KM
+          NO
         </div>
       </div>
       <div>
         <p className="text-[11px] uppercase tracking-[0.34em] text-accent-soft">Know Me</p>
-        <p className={cn("font-semibold text-white", compact ? "text-base" : "text-lg")}>NU-BI</p>
+        <p className={cn("font-semibold text-white", compact ? "text-base" : "text-lg")}>NOMI</p>
       </div>
     </div>
   );

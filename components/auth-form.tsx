@@ -47,8 +47,8 @@ export function AuthForm({ variant }: { variant: Variant }) {
             <Field label="Username" name="username" placeholder="novareed" />
           </>
         ) : null}
-        <Field label="Email" name="email" placeholder="you@nubi.com" type="email" />
-        <Field label="Password" name="password" placeholder="••••••••" type="password" />
+        <Field label="Email" name="email" placeholder="you@nomi.com" type="email" />
+        <Field label="Password" name="password" placeholder="********" type="password" />
       </div>
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
       <button

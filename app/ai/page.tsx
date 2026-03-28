@@ -23,7 +23,7 @@ export default async function AIPage() {
         </p>
         <p className="mt-2 text-sm text-white/60">
           {aiConfigured
-            ? "Nu-bi is using your configured OpenAI API key for captioning, replies, inbox summaries, and image generation."
+            ? "NOMI is using your configured OpenAI API key for captioning, replies, inbox summaries, and image generation."
             : "Set OPENAI_API_KEY in .env.local to switch from local fallback behavior to live AI responses."}
         </p>
       </section>

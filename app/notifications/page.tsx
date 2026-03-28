@@ -43,12 +43,12 @@ export default async function NotificationsPage() {
             >
               <Avatar
                 className="h-12 w-12"
-                name={notification.actor?.displayName ?? "Nu-bi"}
+                name={notification.actor?.displayName ?? "NOMI"}
                 src={notification.actor?.avatarUrl}
               />
               <div className="flex-1">
                 <p className="text-white/85">
-                  <span className="font-medium">{notification.actor?.displayName ?? "Nu-bi"}</span>{" "}
+                  <span className="font-medium">{notification.actor?.displayName ?? "NOMI"}</span>{" "}
                   triggered a {notification.type}.
                 </p>
                 <p className="mt-1 text-sm text-white/45">{formatRelativeDate(notification.createdAt)}</p>
