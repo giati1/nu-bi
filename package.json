@@ -16,6 +16,7 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:seed": "tsx scripts/seed.ts",
     "cf:patch-adapter": "node scripts/patch-opennext-cloudflare.mjs",
+    "cf:verify-adapter": "node scripts/patch-opennext-cloudflare.mjs --verify",
     "precf:build": "node scripts/patch-opennext-cloudflare.mjs",
     "cf:build": "cloudflare",
     "cf:preview": "npm run cf:build && wrangler dev --env preview --port 8787",

@@ -28,10 +28,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply OpenNext compatibility patch
+      - name: Run adapter patch
         run: node scripts/patch-opennext-cloudflare.mjs
 
-      - name: Verify patched OpenNext adapter
+      - name: Verify patch
         run: node scripts/patch-opennext-cloudflare.mjs --verify
 
       - name: Typecheck
