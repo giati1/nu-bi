@@ -11,5 +11,6 @@
 - Protected APIs should use `requireViewer()`.
 - Preserve the current local port default of `8000` unless there is a hard requirement to change it.
 - Cloudflare preview and production currently use the pinned `Next 13.5.11` + `@opennextjs/cloudflare 0.2.1` + `wrangler 3.114.17` path so local Node `18.14+` development stays intact.
+- Prefer GitHub Actions or Linux-based automation for `cf:build` and preview deploys; do not assume the Windows shell is the correct release path for this pinned adapter line.
 - Do not casually collapse local SQLite/local uploads into Cloudflare D1/R2 code paths.
 - Prefer startup-grade polish in scripts, docs, and deployment ergonomics, but do not redesign the app to achieve that.

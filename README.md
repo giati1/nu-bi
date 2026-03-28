@@ -125,6 +125,8 @@ npm run cf:build
 
 If you are running the Cloudflare build from this Windows workstation and hit `Patch \`patchCache\` not applied`, run the same command from Linux/WSL or use the GitHub deploy workflow instead.
 
+The GitHub validation workflow runs the Cloudflare build on `ubuntu-latest`, which is the intended automation path for this repo.
+
 ## Cloudflare files and bindings
 
 `wrangler.jsonc` is the source of truth for Worker bindings.
@@ -272,6 +274,27 @@ What this gives you:
 - a remote preview/staging Worker using the `preview` binding block in `wrangler.jsonc`
 - D1 and R2 separated from local SQLite and local uploads
 
+## GitHub preview deployment
+
+This repo now has a Linux-friendly preview deployment workflow:
+
+- workflow file: `.github/workflows/deploy-cloudflare.yml`
+- workflow name: `Deploy Cloudflare Preview`
+- runner: `ubuntu-latest`
+- target GitHub environment: `preview`
+- input: `git_ref`
+
+What the workflow does:
+
+- checks out the requested ref
+- runs `npm ci`
+- runs `npm run typecheck`
+- runs `npm run build`
+- runs `npm run cf:build`
+- runs `npm run cf:deploy:preview`
+
+This keeps preview deployment off the local Windows shell and on Linux infrastructure, which is the reliable path for the pinned OpenNext toolchain.
+
 ## Production deployment
 
 Deploy production:
@@ -285,19 +308,44 @@ npm run cf:deploy
 Validation workflow:
 
 - file: `.github/workflows/validate.yml`
-- runs `npm ci`, `npm run typecheck`, and `npm run build`
+- runs `npm ci`
+- runs `npm run typecheck`
+- runs `npm run build`
+- runs `npm run cf:build`
 
 Cloudflare deploy workflow:
 
 - file: `.github/workflows/deploy-cloudflare.yml`
-- manual dispatch with `preview` or `production`
+- manual dispatch
+- deploys the `preview` environment only
+- accepts a `git_ref` input so you can deploy a branch, tag, or commit safely
 
 Required GitHub secrets:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
+Recommended GitHub environment:
+
+- create a GitHub environment named `preview`
+- attach any approval rules you want to that environment
+
 If you want GitHub Actions deployments to succeed, the committed `wrangler.jsonc` must already contain real D1 IDs and the correct bucket names.
+
+## GitHub secrets vs Cloudflare secrets
+
+GitHub repository or environment secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+Cloudflare Worker runtime secrets set with Wrangler or in the Cloudflare dashboard:
+
+- `OPENAI_API_KEY`
+- `GOOGLE_CLIENT_SECRET`
+- any future server-only secret your app reads at runtime
+
+Do not put Worker runtime secrets into GitHub Actions just to deploy them. Those secrets belong in Cloudflare itself.
 
 ## Manual Cloudflare checklist
 
@@ -313,7 +361,9 @@ You still need to do these actions in your Cloudflare account:
 8. Create required secrets for production.
 9. Create required secrets for preview.
 10. Apply D1 migrations to both environments.
-11. Run `npm run cf:deploy:preview`.
+11. Add the GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+12. Create the GitHub environment named `preview`.
+13. Run the `Deploy Cloudflare Preview` GitHub Actions workflow.
 
 ## Exact commands
 
@@ -354,7 +404,14 @@ npm run cf:preview
 npm run cf:deploy:preview
 ```
 
-If you are invoking the Cloudflare path from GitHub Actions instead of the local Windows shell, use the existing manual workflow in `.github/workflows/deploy-cloudflare.yml` and choose `preview`.
+GitHub Actions preview deploy:
+
+1. Open the GitHub repository.
+2. Open `Actions`.
+3. Open `Deploy Cloudflare Preview`.
+4. Click `Run workflow`.
+5. Enter `main` or the branch or commit you want in `git_ref`.
+6. Run the workflow.
 
 Production deploy:
 

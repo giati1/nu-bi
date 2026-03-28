@@ -22,7 +22,7 @@
     {
       "binding": "DB",
       "database_name": "nu-bi",
-      "database_id": "replace-with-real-production-d1-id",
+      "database_id": "673b135d-6b56-44f9-801f-b87c0826a89a",
       "migrations_dir": "db/migrations"
     }
   ],
@@ -48,7 +48,7 @@
         {
           "binding": "DB",
           "database_name": "nu-bi-preview",
-          "database_id": "replace-with-real-preview-d1-id",
+          "database_id": "3c1cdf38-d5b0-43c6-a57d-1ba82a41e8cf",
           "migrations_dir": "db/migrations"
         }
       ],
