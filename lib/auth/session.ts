@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { env, isProduction } from "@/lib/config/env";
 import {
@@ -49,4 +49,14 @@ export async function requireViewer() {
     throw new Error("UNAUTHORIZED");
   }
   return viewer;
+}
+
+export async function requirePageViewer(nextPath: string) {
+  const viewer = await getViewer();
+  if (viewer) {
+    return viewer;
+  }
+
+  const destination = new URLSearchParams({ next: nextPath });
+  redirect(`/login?${destination.toString()}`);
 }

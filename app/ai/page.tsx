@@ -1,15 +1,13 @@
 import { Sparkles, ImageIcon, Bot } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AIStudio } from "@/components/ai-studio";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
+import { env } from "@/lib/config/env";
 
 export default async function AIPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/ai");
 
-  const aiConfigured = Boolean(process.env.OPENAI_API_KEY);
+  const aiConfigured = Boolean(env.openAiApiKey);
 
   return (
     <AppShell

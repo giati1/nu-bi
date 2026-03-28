@@ -1,5 +1,4 @@
-import crypto from "crypto";
-import { env } from "@/lib/config/env";
+import { env, usesLocalStorage, usesR2 } from "@/lib/config/env";
 import { getCloudflareBindings } from "@/lib/cloudflare/context";
 
 export type UploadedFileLike = {
@@ -9,12 +8,18 @@ export type UploadedFileLike = {
 };
 
 export async function saveUploadedFile(file: UploadedFileLike) {
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const bytes = new Uint8Array(await file.arrayBuffer());
   const extension = guessExtension(file.type ?? "") || extname(file.name ?? "");
   const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`;
   const cloudflare = getCloudflareBindings();
 
-  if (cloudflare?.MEDIA && (env.storageDriver === "r2" || env.storageDriver === "cloudflare")) {
+  if (usesR2()) {
+    if (!cloudflare?.MEDIA) {
+      throw new Error(
+        "STORAGE_DRIVER is set to r2, but the Cloudflare MEDIA binding is unavailable. Use wrangler dev/deploy for R2, or switch STORAGE_DRIVER=local for local Node development."
+      );
+    }
+
     await cloudflare.MEDIA.put(filename, bytes, {
       httpMetadata: {
         contentType: file.type || undefined
@@ -28,6 +33,10 @@ export async function saveUploadedFile(file: UploadedFileLike) {
         : `${env.publicMediaBasePath.replace(/\/$/, "")}/${filename}`,
       mimeType: file.type || null
     };
+  }
+
+  if (!usesLocalStorage()) {
+    throw new Error(`Unsupported STORAGE_DRIVER value: ${env.storageDriver}`);
   }
 
   const fs = await import("fs/promises");
@@ -45,25 +54,39 @@ export async function saveUploadedFile(file: UploadedFileLike) {
 
 export async function getStoredFile(key: string) {
   const cloudflare = getCloudflareBindings();
-  if (cloudflare?.MEDIA && (env.storageDriver === "r2" || env.storageDriver === "cloudflare")) {
+
+  if (usesR2()) {
+    if (!cloudflare?.MEDIA) {
+      throw new Error(
+        "STORAGE_DRIVER is set to r2, but the Cloudflare MEDIA binding is unavailable. Use wrangler dev/deploy for R2, or switch STORAGE_DRIVER=local for local Node development."
+      );
+    }
+
     const object = await cloudflare.MEDIA.get(key);
     if (!object?.body) {
       return null;
     }
+
     const headers = new Headers();
     object.writeHttpMetadata?.(headers);
     if (!headers.get("content-type") && object.httpMetadata?.contentType) {
       headers.set("content-type", object.httpMetadata.contentType);
     }
+
     return {
       body: object.body,
       contentType: headers.get("content-type") ?? guessMimeTypeFromKey(key)
     };
   }
 
+  if (!usesLocalStorage()) {
+    throw new Error(`Unsupported STORAGE_DRIVER value: ${env.storageDriver}`);
+  }
+
   const fs = await import("fs/promises");
   const path = await import("path");
   const filePath = path.join(env.uploadsDir, key);
+
   try {
     const body = await fs.readFile(filePath);
     return {

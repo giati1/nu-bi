@@ -95,7 +95,7 @@ export function AIStudio() {
         onAction={() =>
           startTransition(async () => {
             setError(null);
-            const response = await fetch("/api/ai/image", {
+            const response = await fetch("/api/ai/visual", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ prompt: imagePrompt, style: imageStyle })

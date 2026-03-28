@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell, Bookmark, Sparkles, UserRoundCog } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 
 const items = [
   {
@@ -31,10 +31,7 @@ const items = [
 ];
 
 export default async function SettingsPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/settings");
 
   return (
     <AppShell

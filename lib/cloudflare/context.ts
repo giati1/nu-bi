@@ -1,16 +1,23 @@
+type D1PreparedStatement = {
+  bind: (...params: unknown[]) => {
+    all: <T = unknown>() => Promise<{ results: T[] }>;
+    first: <T = unknown>() => Promise<T | null>;
+    run: () => Promise<{
+      success?: boolean;
+      meta?: { last_row_id?: number; changes?: number };
+    }>;
+  };
+};
+
+type D1Session = {
+  prepare: (sql: string) => D1PreparedStatement;
+};
+
 type CloudflareBindings = {
   DB?: {
-    prepare: (sql: string) => {
-      bind: (...params: unknown[]) => {
-        all: <T = unknown>() => Promise<{ results: T[] }>;
-        first: <T = unknown>() => Promise<T | null>;
-        run: () => Promise<{
-          success?: boolean;
-          meta?: { last_row_id?: number; changes?: number };
-        }>;
-      };
-    };
+    prepare: (sql: string) => D1PreparedStatement;
     exec: (sql: string) => Promise<unknown>;
+    withSession?: (constraint?: "first-primary" | "first-unconstrained" | string) => D1Session;
   };
   MEDIA?: {
     put: (

@@ -1,4 +1,4 @@
-import { env } from "@/lib/config/env";
+import { env, usesD1 } from "@/lib/config/env";
 import { getCloudflareBindings } from "@/lib/cloudflare/context";
 
 type RunResult = {
@@ -22,6 +22,16 @@ let sqliteSetupPromise: Promise<void> | null = null;
 
 function getD1Database() {
   return getCloudflareBindings()?.DB ?? null;
+}
+
+function requireD1Database() {
+  const d1 = getD1Database();
+  if (!d1) {
+    throw new Error(
+      "DATABASE_DRIVER is set to d1, but the Cloudflare DB binding is unavailable. Use wrangler dev/deploy for D1, or switch DATABASE_DRIVER=sqlite for local Node development."
+    );
+  }
+  return d1;
 }
 
 async function getSqliteDatabase() {
@@ -126,58 +136,64 @@ async function ensureLocalDatabase() {
 }
 
 export async function ensureDatabase() {
-  if (getD1Database()) {
+  if (usesD1()) {
+    requireD1Database();
     return;
   }
+
   await ensureLocalDatabase();
 }
 
 export async function exec(sql: string) {
-  const d1 = getD1Database();
-  if (d1) {
+  if (usesD1()) {
+    const d1 = requireD1Database();
     await d1.exec(sql);
     return;
   }
+
   await ensureLocalDatabase();
   await rawExecLocal(sql);
 }
 
 export async function run(sql: string, params: unknown[] = []) {
-  const d1 = getD1Database();
-  if (d1) {
+  if (usesD1()) {
+    const d1 = requireD1Database();
     const result = await d1.prepare(sql).bind(...params).run();
     return {
       lastID: Number(result.meta?.last_row_id ?? 0),
       changes: Number(result.meta?.changes ?? 0)
     } satisfies RunResult;
   }
+
   await ensureLocalDatabase();
   return await rawRunLocal(sql, params);
 }
 
 export async function get<T>(sql: string, params: unknown[] = []) {
-  const d1 = getD1Database();
-  if (d1) {
+  if (usesD1()) {
+    const d1 = requireD1Database();
     const result = await d1.prepare(sql).bind(...params).first<T>();
     return (result ?? undefined) as T | undefined;
   }
+
   await ensureLocalDatabase();
   return await rawGetLocal<T>(sql, params);
 }
 
 export async function all<T>(sql: string, params: unknown[] = []) {
-  const d1 = getD1Database();
-  if (d1) {
+  if (usesD1()) {
+    const d1 = requireD1Database();
     const result = await d1.prepare(sql).bind(...params).all<T>();
     return result.results ?? [];
   }
+
   await ensureLocalDatabase();
   return await rawAllLocal<T>(sql, params);
 }
 
 export async function transaction<T>(callback: () => Promise<T>) {
-  const d1 = getD1Database();
-  if (d1) {
+  if (usesD1()) {
+    const d1 = requireD1Database();
     await d1.exec("BEGIN TRANSACTION");
     try {
       const result = await callback();

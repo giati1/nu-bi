@@ -7,7 +7,7 @@ import { ConversationThread } from "@/components/conversation-thread";
 import { LiveRefresh } from "@/components/live-refresh";
 import { SharedMediaPanel } from "@/components/shared-media-panel";
 import { TypingIndicator } from "@/components/typing-indicator";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getConversationReadState, getConversationSummaries, getConversationThread } from "@/lib/db/repository";
 
 export default async function ConversationPage({
@@ -15,10 +15,7 @@ export default async function ConversationPage({
 }: {
   params: { conversationId: string };
 }) {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer(`/messages/${params.conversationId}`);
 
   const [conversations, thread, readState] = await Promise.all([
     getConversationSummaries(viewer.id),

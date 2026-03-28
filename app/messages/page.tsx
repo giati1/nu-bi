@@ -3,14 +3,11 @@ import { AppShell } from "@/components/app-shell";
 import { LiveRefresh } from "@/components/live-refresh";
 import { MessagesList } from "@/components/messages-list";
 import { getAIAdapter } from "@/lib/ai";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getConversationSummaries } from "@/lib/db/repository";
 
 export default async function MessagesPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/messages");
 
   const conversations = await getConversationSummaries(viewer.id);
   const summary = await getAIAdapter().summarizeInbox({

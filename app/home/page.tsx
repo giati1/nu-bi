@@ -5,14 +5,11 @@ import { FeedComposer } from "@/components/feed-composer";
 import { LiveRefresh } from "@/components/live-refresh";
 import { PostCard } from "@/components/post-card";
 import { Avatar } from "@/components/avatar";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getConversationSummaries, getHomeFeed, getNotifications, getSuggestedUsers, getTrendingTags } from "@/lib/db/repository";
 
 export default async function HomePage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/home");
 
   const [feed, conversations, notifications, suggestions, tags] = await Promise.all([
     getHomeFeed(viewer.id),

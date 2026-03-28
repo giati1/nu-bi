@@ -3,7 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { PostCard } from "@/components/post-card";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { searchAll } from "@/lib/db/repository";
 
 export default async function SearchPage({
@@ -11,10 +11,7 @@ export default async function SearchPage({
 }: {
   searchParams: { q?: string };
 }) {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/search");
   const query = searchParams.q?.trim() ?? "";
   const results = query ? await searchAll(query, viewer.id) : { users: [], posts: [] };
 

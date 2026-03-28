@@ -3,14 +3,11 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { InterestPicker } from "@/components/interest-picker";
 import { PostCard } from "@/components/post-card";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getDiscoveryFeed, getSuggestedUsers, getTrendingTags, getUserInterests } from "@/lib/db/repository";
 
 export default async function ExplorePage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/explore");
 
   const [posts, suggestions, tags, interests] = await Promise.all([
     getDiscoveryFeed(viewer.id),

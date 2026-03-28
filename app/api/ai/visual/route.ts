@@ -15,6 +15,9 @@ export async function POST(request: Request) {
     const image = await getAIAdapter().generateImage(parsed);
     return NextResponse.json(image);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to generate image." }, { status: 400 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to generate image." },
+      { status: 400 }
+    );
   }
 }

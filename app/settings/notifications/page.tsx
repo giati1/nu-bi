@@ -1,13 +1,10 @@
 import { AppShell } from "@/components/app-shell";
 import { NotificationSettingsForm } from "@/components/notification-settings-form";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getNotificationPreferences } from "@/lib/db/repository";
 
 export default async function NotificationSettingsPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/settings/notifications");
 
   const preferences = await getNotificationPreferences(viewer.id);
 

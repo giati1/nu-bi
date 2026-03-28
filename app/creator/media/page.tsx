@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getCreatorDashboard } from "@/lib/db/repository";
 
 export default async function CreatorMediaPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/creator/media");
 
   const dashboard = await getCreatorDashboard(viewer.id);
   const posts = [...dashboard.published, ...dashboard.scheduled, ...dashboard.drafts];

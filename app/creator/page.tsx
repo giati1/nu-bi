@@ -5,14 +5,11 @@ import { CreatorPostActions } from "@/components/creator-post-actions";
 import { FeedComposer } from "@/components/feed-composer";
 import { EmptyState } from "@/components/empty-state";
 import { PostCard } from "@/components/post-card";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getCreatorDashboard } from "@/lib/db/repository";
 
 export default async function CreatorPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/creator");
 
   const dashboard = await getCreatorDashboard(viewer.id);
 

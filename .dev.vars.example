@@ -1,4 +1,8 @@
+# Worker-runtime preview values used by `wrangler dev`.
+# D1 and R2 bindings are configured in wrangler.jsonc, not in this file.
+
 NODE_ENV=production
+CLOUDFLARE_ENV=preview
 NEXT_PUBLIC_APP_URL=http://127.0.0.1:8787
 DATABASE_DRIVER=d1
 STORAGE_DRIVER=r2

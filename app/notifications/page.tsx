@@ -3,15 +3,12 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { LiveRefresh } from "@/components/live-refresh";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getNotifications, markNotificationsRead } from "@/lib/db/repository";
 import { formatRelativeDate } from "@/lib/utils";
 
 export default async function NotificationsPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/notifications");
 
   const notifications = await getNotifications(viewer.id);
   await markNotificationsRead(viewer.id);

@@ -1,4 +1,5 @@
 import { clsx } from "clsx";
+import { env } from "@/lib/config/env";
 
 export function cn(...values: Array<string | false | null | undefined>) {
   return clsx(values);
@@ -42,6 +43,5 @@ export function buildInitials(name: string) {
 }
 
 export function absoluteUrl(pathname: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:8000";
-  return new URL(pathname, base).toString();
+  return new URL(pathname, env.appUrl).toString();
 }

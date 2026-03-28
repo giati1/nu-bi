@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nu-bi",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-03-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NODE_ENV": "production",
+    "CLOUDFLARE_ENV": "production",
+    "DATABASE_DRIVER": "d1",
+    "STORAGE_DRIVER": "r2",
+    "NEXT_PUBLIC_MEDIA_BASE_PATH": "/api/media",
+    "SESSION_COOKIE_NAME": "nubi_session",
+    "SESSION_MAX_AGE_DAYS": "14"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nu-bi",
+      "database_id": "replace-with-real-production-d1-id",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "nu-bi-media",
+      "preview_bucket_name": "nu-bi-media-preview"
+    }
+  ],
+  "env": {
+    "preview": {
+      "vars": {
+        "NODE_ENV": "production",
+        "CLOUDFLARE_ENV": "preview",
+        "DATABASE_DRIVER": "d1",
+        "STORAGE_DRIVER": "r2",
+        "NEXT_PUBLIC_MEDIA_BASE_PATH": "/api/media",
+        "SESSION_COOKIE_NAME": "nubi_session",
+        "SESSION_MAX_AGE_DAYS": "14"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nu-bi-preview",
+          "database_id": "replace-with-real-preview-d1-id",
+          "migrations_dir": "db/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "nu-bi-media-preview",
+          "preview_bucket_name": "nu-bi-media-preview"
+        }
+      ]
+    }
+  }
+}

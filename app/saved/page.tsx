@@ -1,14 +1,11 @@
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { PostCard } from "@/components/post-card";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 import { getSavedPosts } from "@/lib/db/repository";
 
 export default async function SavedPage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/saved");
 
   const posts = await getSavedPosts(viewer.id);
 

@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ProfileEditor } from "@/components/profile-editor";
-import { getViewer } from "@/lib/auth/session";
+import { requirePageViewer } from "@/lib/auth/session";
 
 export default async function SettingsProfilePage() {
-  const viewer = await getViewer();
-  if (!viewer) {
-    return null;
-  }
+  const viewer = await requirePageViewer("/settings/profile");
 
   return (
     <AppShell
