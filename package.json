@@ -6,6 +6,7 @@
     "node": ">=18.14.0"
   },
   "scripts": {
+    "postinstall": "node scripts/patch-opennext-cloudflare.mjs",
     "dev": "node scripts/run-next.mjs dev",
     "build": "next build",
     "start": "node scripts/run-next.mjs start",
