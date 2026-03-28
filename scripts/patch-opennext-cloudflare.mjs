@@ -10,8 +10,10 @@ const targetFile = path.join(
   "cli",
   "index.mjs"
 );
+const nextPackageFile = path.join(process.cwd(), "node_modules", "next", "package.json");
 const patchedMarker = "CacheHandler = CacheHandler.OpenNextCacheHandler || CacheHandler.default || CacheHandler;";
 const verifyOnly = process.argv.includes("--verify");
+const supportedNextVersion = "13.5.11";
 
 const patchedFunction = `async function patchCache(code, config) {
   console.log("# patchCache");
@@ -62,6 +64,10 @@ if (!fs.existsSync(targetFile)) {
   throw new Error(`OpenNext adapter file not found: ${targetFile}`);
 }
 
+if (!fs.existsSync(nextPackageFile)) {
+  throw new Error(`Installed Next.js package not found: ${nextPackageFile}`);
+}
+
 const patchCachePattern = /async function patchCache\(code, config\) \{[\s\S]*?return patchedCode;\r?\n\}/;
 
 function readTarget() {
@@ -75,6 +81,13 @@ function assertPatched(text) {
 }
 
 const current = readTarget();
+const nextPackage = JSON.parse(fs.readFileSync(nextPackageFile, "utf8"));
+
+if (nextPackage.version !== supportedNextVersion) {
+  throw new Error(
+    `Installed Next.js version ${nextPackage.version} is unsupported for this adapter patch. Expected ${supportedNextVersion}.`
+  );
+}
 
 if (verifyOnly) {
   assertPatched(current);
