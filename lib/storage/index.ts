@@ -47,9 +47,30 @@ export async function saveUploadedFile(file: UploadedFileLike) {
 
   return {
     storageKey: filename,
-    url: `${env.publicStorageBasePath.replace(/\/$/, "")}/${filename}`,
+    url: toStoredFileUrl(filename),
     mimeType: file.type || null
   };
+}
+
+export async function saveGeneratedDataUrl(input: { filenamePrefix: string; dataUrl: string }) {
+  const parsed = parseDataUrl(input.dataUrl);
+  if (!parsed) {
+    throw new Error("Generated media was not a valid data URL.");
+  }
+
+  const extension = guessExtension(parsed.mimeType);
+  const file = {
+    name: `${input.filenamePrefix}${extension}`,
+    type: parsed.mimeType,
+    async arrayBuffer() {
+      return parsed.bytes.buffer.slice(
+        parsed.bytes.byteOffset,
+        parsed.bytes.byteOffset + parsed.bytes.byteLength
+      );
+    }
+  } satisfies UploadedFileLike;
+
+  return await saveUploadedFile(file);
 }
 
 export async function getStoredFile(key: string) {
@@ -98,6 +119,58 @@ export async function getStoredFile(key: string) {
   }
 }
 
+export function toStoredFileUrl(storageKey: string) {
+  return `${env.publicMediaBasePath.replace(/\/$/, "")}/${encodeURIComponent(storageKey)}`;
+}
+
+export function normalizeStoredFileUrl(url: string | null | undefined, storageKey?: string | null) {
+  if (!url && !storageKey) {
+    return null;
+  }
+
+  if (!usesLocalStorage()) {
+    return url ?? null;
+  }
+
+  if (storageKey) {
+    return toStoredFileUrl(storageKey);
+  }
+
+  const trimmed = url?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith(`${env.publicMediaBasePath.replace(/\/$/, "")}/`)) {
+    return trimmed;
+  }
+
+  if (/^data:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const localUploadsBase = `${env.publicStorageBasePath.replace(/\/$/, "")}/`;
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.pathname.startsWith(localUploadsBase)) {
+        const filename = parsed.pathname.slice(localUploadsBase.length).split("/").pop();
+        return filename ? toStoredFileUrl(decodeURIComponent(filename)) : trimmed;
+      }
+      return trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  if (trimmed.startsWith(localUploadsBase)) {
+    const filename = trimmed.slice(localUploadsBase.length).split("/").pop();
+    return filename ? toStoredFileUrl(decodeURIComponent(filename)) : trimmed;
+  }
+
+  return trimmed;
+}
+
 function extname(filename: string) {
   const index = filename.lastIndexOf(".");
   return index >= 0 ? filename.slice(index) : "";
@@ -105,6 +178,8 @@ function extname(filename: string) {
 
 function guessExtension(mimeType: string) {
   switch (mimeType) {
+    case "image/svg+xml":
+      return ".svg";
     case "image/png":
       return ".png";
     case "image/webp":
@@ -133,6 +208,8 @@ function guessExtension(mimeType: string) {
 function guessMimeTypeFromKey(key: string) {
   const extension = key.split(".").pop()?.toLowerCase();
   switch (extension) {
+    case "svg":
+      return "image/svg+xml";
     case "png":
       return "image/png";
     case "webp":
@@ -154,4 +231,23 @@ function guessMimeTypeFromKey(key: string) {
     default:
       return "image/jpeg";
   }
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/s);
+  if (!match) {
+    return null;
+  }
+
+  const mimeType = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] ?? "";
+  const buffer = isBase64
+    ? Buffer.from(payload, "base64")
+    : Buffer.from(decodeURIComponent(payload), "utf8");
+
+  return {
+    mimeType,
+    bytes: new Uint8Array(buffer)
+  };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
+import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { updatePostStatus } from "@/lib/db/repository";
 import { z } from "zod";
 
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
       postId: parsed.postId,
       viewerId: viewer.id,
       status: parsed.status,
-      scheduledFor: parsed.scheduledFor ?? null
+      scheduledFor: parsed.scheduledFor ?? null,
+      canUpdateAnyPost: isInternalAdminUsername(viewer.username)
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

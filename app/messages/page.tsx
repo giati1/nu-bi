@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { InboxBriefPanel } from "@/components/inbox-brief-panel";
 import { LiveRefresh } from "@/components/live-refresh";
 import { MessagesList } from "@/components/messages-list";
 import { getAIAdapter } from "@/lib/ai";
@@ -10,32 +10,64 @@ export default async function MessagesPage() {
   const viewer = await requirePageViewer("/messages");
 
   const conversations = await getConversationSummaries(viewer.id);
-  const summary = await getAIAdapter().summarizeInbox({
-    ownerDisplayName: viewer.displayName,
-    conversations: conversations.slice(0, 6).map((conversation) => ({
-      counterpart: conversation.counterpart.displayName,
-      unreadCount: conversation.unreadCount,
-      lastMessage: conversation.lastMessage?.body ?? null,
-      updatedAt: conversation.updatedAt
-    }))
-  });
+  const summary = await getInboxSummary(viewer.displayName, conversations);
 
   return (
     <AppShell
-      subtitle="One-to-one conversations with unread state, replies, attachments, and smarter controls."
+      subtitle="Your conversations live here. Open a thread, search messages, or start one from a profile."
       title="Messages"
     >
       <LiveRefresh intervalMs={12000} />
-      <section className="glass-panel rounded-[28px] border-accent/15 bg-accent/5 p-5 shadow-panel">
-        <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">AI inbox brief</p>
-        <p className="mt-3 text-lg font-semibold">{summary.headline}</p>
-        <div className="mt-4 space-y-2 text-sm text-white/70">
-          {summary.bullets.map((bullet) => (
-            <p key={bullet}>{bullet}</p>
-          ))}
-        </div>
-      </section>
+      <InboxBriefPanel bullets={summary.bullets} headline={summary.headline} />
       <MessagesList conversations={conversations} />
     </AppShell>
   );
+}
+
+async function getInboxSummary(
+  ownerDisplayName: string,
+  conversations: Awaited<ReturnType<typeof getConversationSummaries>>
+) {
+  try {
+    return await getAIAdapter().summarizeInbox({
+      ownerDisplayName,
+      conversations: conversations.slice(0, 6).map((conversation) => ({
+        counterpart: conversation.counterpart.displayName,
+        unreadCount: conversation.unreadCount,
+        lastMessage: conversation.lastMessage?.body ?? null,
+        updatedAt: conversation.updatedAt
+      }))
+    });
+  } catch {
+    if (conversations.length === 0) {
+      return {
+        headline: `${ownerDisplayName}, your inbox is clear right now.`,
+        bullets: [
+          "No active threads yet.",
+          "Start a conversation from a profile.",
+          "New replies will show up here."
+        ]
+      };
+    }
+
+    const unreadCount = conversations.filter((conversation) => conversation.unreadCount > 0).length;
+
+    return {
+      headline:
+        unreadCount > 0
+          ? `${unreadCount} thread${unreadCount === 1 ? "" : "s"} need attention.`
+          : "All caught up. Your latest conversations are still within reach.",
+      bullets: conversations.slice(0, 3).map((conversation) => {
+        const preview =
+          conversation.lastMessage?.body ||
+          (conversation.lastMessage?.mediaMimeType?.startsWith("audio/")
+            ? "Voice note"
+            : conversation.lastMessage?.mediaMimeType?.startsWith("video/")
+              ? "Video attachment"
+              : "No messages yet");
+
+        return `${conversation.counterpart.displayName}: ${preview}`;
+      })
+    };
+  }
 }

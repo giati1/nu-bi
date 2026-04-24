@@ -32,12 +32,12 @@ export default async function ConversationPage({
   return (
     <AppShell
       aside={
-        <section className="glass-panel rounded-[28px] p-5">
+        <section className="panel-soft edge-light rounded-[30px] bg-black p-5">
           <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Conversations</p>
           <div className="mt-4 space-y-3">
             {conversations.map((conversation) => (
               <Link
-                className="flex items-center gap-3 rounded-2xl border border-white/10 p-3"
+                className="flex items-start gap-3 rounded-[24px] border border-white/10 bg-white/[0.02] p-4"
                 href={`/messages/${conversation.id}`}
                 key={conversation.id}
               >
@@ -46,12 +46,20 @@ export default async function ConversationPage({
                   name={conversation.counterpart.displayName}
                   src={conversation.counterpart.avatarUrl}
                 />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{conversation.counterpart.displayName}</p>
-                  <p className="truncate text-xs text-white/50">
-                    {conversation.lastMessage?.body ?? "No messages yet"}
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <p className="truncate text-sm font-medium leading-6 text-white">{conversation.counterpart.displayName}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-white/38">
+                    @{conversation.counterpart.username}
+                  </p>
+                  <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/50">
+                    {conversation.lastMessage?.body || (conversation.lastMessage?.mediaMimeType?.startsWith("audio/") ? "Voice note" : "No messages yet")}
                   </p>
                 </div>
+                {conversation.unreadCount > 0 ? (
+                  <span className="mt-1 rounded-full border border-accent/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-soft">
+                    {conversation.unreadCount}
+                  </span>
+                ) : null}
               </Link>
             ))}
           </div>

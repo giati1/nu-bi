@@ -3,6 +3,7 @@ import { createAuthSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { createUser, getUserByEmail, getUserByUsername } from "@/lib/db/repository";
 import { signupSchema } from "@/lib/validators";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     const passwordHash = await hashPassword(parsed.password);
     const user = await createUser({
       email: parsed.email,
-      username: parsed.username.toLowerCase(),
+      username: parsed.username,
       displayName: parsed.displayName,
       passwordHash
     });
@@ -35,6 +36,13 @@ export async function POST(request: Request) {
     await createAuthSession(user.id);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Invalid signup details." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Invalid request." },
       { status: 400 }

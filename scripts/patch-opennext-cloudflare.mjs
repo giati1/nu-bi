@@ -11,7 +11,11 @@ const targetFile = path.join(
   "index.mjs"
 );
 const nextPackageFile = path.join(process.cwd(), "node_modules", "next", "package.json");
-const patchedMarker = "CacheHandler = CacheHandler.OpenNextCacheHandler || CacheHandler.default || CacheHandler;";
+const patchedMarker = "CacheHandler = OpenNextCacheHandler;";
+const badAwaitImportMarker =
+  "CacheHandler = (await import('./\" + cacheHandlerFileBase + \".mjs')).OpenNextCacheHandler;";
+const legacyDynamicRequireMarker =
+  "CacheHandler = dynamicRequire((0, _path.join)(this.distDir, incrementalCacheHandlerPath));";
 const verifyOnly = process.argv.includes("--verify");
 const supportedNextVersion = "13.5.11";
 
@@ -48,21 +52,22 @@ const patchedFunction = `async function patchCache(code, config) {
     minify: config.build.shouldMinify,
     define
   });
+  const cacheHandlerImport = "import { OpenNextCacheHandler } from './" + cacheHandlerFileBase + ".mjs';\\n";
   let patchedCode = code.replace(
     /const \\{ cacheHandler \\} = this\\.nextConfig;/,
-    "const cacheHandler = null;\\nCacheHandler = (await import('./" + cacheHandlerFileBase + ".mjs')).OpenNextCacheHandler;\\n"
+    "const cacheHandler = null;\\nCacheHandler = OpenNextCacheHandler;\\n"
   );
   if (patchedCode !== code) {
-    return patchedCode;
+    return patchedCode.includes(cacheHandlerImport) ? patchedCode : cacheHandlerImport + patchedCode;
   }
   patchedCode = code.replace(
     /const \\{ incrementalCacheHandlerPath \\} = this\\.nextConfig\\.experimental;\\s+if \\(incrementalCacheHandlerPath\\) \\{\\s+CacheHandler = dynamicRequire\\(\\(0, _path\\.isAbsolute\\)\\(incrementalCacheHandlerPath\\) \\? incrementalCacheHandlerPath : \\(0, _path\\.join\\)\\(this\\.distDir, incrementalCacheHandlerPath\\)\\);\\s+CacheHandler = CacheHandler\\.default \\|\\| CacheHandler;\\s+\\}/,
-    "const incrementalCacheHandlerPath = \\"./" + cacheHandlerFileBase + ".cjs\\";\\n        CacheHandler = dynamicRequire((0, _path.join)(this.distDir, incrementalCacheHandlerPath));\\n        CacheHandler = CacheHandler.OpenNextCacheHandler || CacheHandler.default || CacheHandler;"
+    "const incrementalCacheHandlerPath = null;\\n        CacheHandler = OpenNextCacheHandler;"
   );
   if (patchedCode === code) {
     throw new Error("Patch \\\`patchCache\\\` not applied");
   }
-  return patchedCode;
+  return patchedCode.includes(cacheHandlerImport) ? patchedCode : cacheHandlerImport + patchedCode;
 }`;
 
 function log(message) {
@@ -136,7 +141,12 @@ if (verifyOnly) {
   process.exit(0);
 }
 
-if (current.includes(patchedMarker)) {
+const cachePatchAlreadyApplied =
+  current.includes(patchedMarker) &&
+  !current.includes(legacyDynamicRequireMarker) &&
+  !current.includes(badAwaitImportMarker);
+
+if (cachePatchAlreadyApplied) {
   log("PATCH ALREADY APPLIED");
   process.exit(0);
 }
@@ -149,20 +159,26 @@ log(`PATCH FUNCTION FOUND: ${patchFunctionFound}`);
 log(`PATCH OLD PATTERN FOUND: ${oldPatternFound}`);
 log(`PATCH FALLBACK incrementalCacheHandlerPath FOUND: ${incrementalPatternFound}`);
 
-if (!patchFunctionFound) {
+if (!cachePatchAlreadyApplied && !patchFunctionFound) {
   failWithSnippet("Unable to locate the patchCache function in @opennextjs/cloudflare/dist/cli/index.mjs.", current);
 }
 
-if (!oldPatternFound && !incrementalPatternFound) {
+if (
+  !cachePatchAlreadyApplied &&
+  !oldPatternFound &&
+  !incrementalPatternFound &&
+  !current.includes(legacyDynamicRequireMarker) &&
+  !current.includes(badAwaitImportMarker)
+) {
   failWithSnippet(
     "Unable to locate either supported cache handler pattern in @opennextjs/cloudflare/dist/cli/index.mjs.",
     current
   );
 }
 
-const replaced = current.replace(patchCacheFunctionPattern, patchedFunction);
+let replaced = cachePatchAlreadyApplied ? current : current.replace(patchCacheFunctionPattern, patchedFunction);
 
-if (replaced === current) {
+if (!cachePatchAlreadyApplied && replaced === current) {
   log("PATCH REPLACEMENT APPLIED: false");
   failWithSnippet("OpenNext adapter patch replacement did not modify the file.", current);
 }

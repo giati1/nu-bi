@@ -21,11 +21,21 @@ export const env = {
   openAiApiKey: process.env.OPENAI_API_KEY ?? "",
   openAiBaseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
   openAiTextModel: process.env.OPENAI_TEXT_MODEL ?? "gpt-4.1-mini",
-  openAiImageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini"
+  openAiImageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini",
+  aiAgentAdminUsernames: parseCsv(process.env.AI_AGENT_ADMIN_USERNAMES ?? "nubi"),
+  aiAgentSchedulerSecret: process.env.AI_AGENT_SCHEDULER_SECRET ?? ""
 };
 
 export function isProduction() {
   return env.nodeEnv === "production";
+}
+
+export function shouldUseSecureCookies() {
+  try {
+    return new URL(env.appUrl).protocol === "https:";
+  } catch {
+    return isProduction();
+  }
 }
 
 export function usesD1() {
@@ -46,4 +56,11 @@ export function usesLocalStorage() {
 
 function resolveLocalPath(value: string | undefined, fallback: string) {
   return path.resolve(process.cwd(), value ?? fallback);
+}
+
+function parseCsv(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
 }

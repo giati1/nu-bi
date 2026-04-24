@@ -14,14 +14,14 @@ export default async function CreatorMediaPage() {
   return (
     <AppShell
       title="Media Library"
-      subtitle="Review every uploaded image and short-form video connected to your NOMI posts."
+      subtitle="Review every uploaded image and short-form video connected to your posts."
     >
       <div className="flex flex-wrap gap-3">
         <Link className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75" href="/creator">
-          Back to creator dashboard
+          Back to create post
         </Link>
-        <Link className="rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white" href="/home">
-          Create new post
+        <Link className="rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white" href="/creator#post-composer">
+          Open post composer
         </Link>
       </div>
       {mediaPosts.length === 0 ? (
@@ -39,7 +39,7 @@ export default async function CreatorMediaPage() {
                     <video className="h-full w-full object-cover" controls muted playsInline preload="metadata" src={media.url} />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="Library media" className="h-full w-full object-cover" src={media.url} />
+                    <img alt="Library media" className="media-image-focus h-full w-full" src={media.url} />
                   )}
                 </div>
                 <div className="space-y-2 p-4">

@@ -1,22 +1,22 @@
-name: Deploy Cloudflare Preview
+name: Deploy Cloudflare Staging
 
 on:
   workflow_dispatch:
     inputs:
       git_ref:
-        description: Branch, tag, or commit SHA to deploy
+        description: Branch, tag, or commit SHA to deploy to staging
         required: true
         default: main
         type: string
 
 concurrency:
-  group: cloudflare-preview-deploy
+  group: cloudflare-staging-deploy
   cancel-in-progress: false
 
 jobs:
-  deploy-preview:
+  deploy-staging:
     runs-on: ubuntu-latest
-    environment: preview
+    environment: staging
     permissions:
       contents: read
 
@@ -54,5 +54,5 @@ jobs:
       - name: Build Cloudflare worker bundle
         run: npm run cf:build
 
-      - name: Deploy preview Worker
-        run: npm run cf:deploy:preview
+      - name: Deploy staging Worker
+        run: npm run cf:deploy:staging

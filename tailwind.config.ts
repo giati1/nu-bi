@@ -36,7 +36,7 @@ const config: Config = {
       },
       backgroundImage: {
         "mesh-red":
-          "radial-gradient(circle at top left, rgba(239,68,68,0.18), transparent 34%), radial-gradient(circle at bottom right, rgba(220,38,38,0.12), transparent 28%), linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))"
+          "radial-gradient(circle at top left, rgba(255,255,255,0.07), transparent 34%), radial-gradient(circle at bottom right, rgba(115,115,115,0.12), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))"
       }
     }
   },

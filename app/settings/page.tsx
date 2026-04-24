@@ -25,7 +25,7 @@ const items = [
   {
     href: "/ai",
     title: "AI Studio",
-    description: "Check provider status, generate visuals, and use caption or reply tools.",
+    description: "Generate visuals and use caption or reply tools.",
     icon: Sparkles
   }
 ];

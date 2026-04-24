@@ -1,0 +1,50 @@
+name: Health Check and AI Agents
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: health-check-ai-agents
+  cancel-in-progress: false
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      STAGING_HEALTH_URL: ${{ vars.NUBI_STAGING_HEALTH_URL || 'https://nu-bi-preview.cedricfjohnson.workers.dev/' }}
+      PRODUCTION_HEALTH_URL: ${{ vars.NUBI_PRODUCTION_HEALTH_URL || 'https://nu-bi.com/' }}
+
+    steps:
+      - name: Check staging
+        run: curl --fail-with-body --show-error --silent "$STAGING_HEALTH_URL" > /dev/null
+
+      - name: Check production
+        run: curl --fail-with-body --show-error --silent "$PRODUCTION_HEALTH_URL" > /dev/null
+
+  run-ai-agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: health-check
+
+    env:
+      SCHEDULER_URL: ${{ vars.NUBI_AI_AGENT_SCHEDULER_URL || 'https://nu-bi.com/api/internal/ai-agents/scheduled' }}
+      SCHEDULER_SECRET: ${{ secrets.NUBI_AI_AGENT_SCHEDULER_SECRET }}
+
+    steps:
+      - name: Require scheduler secret
+        run: |
+          if [ -z "$SCHEDULER_SECRET" ]; then
+            echo "Missing required GitHub secret: NUBI_AI_AGENT_SCHEDULER_SECRET"
+            exit 1
+          fi
+
+      - name: Trigger eligible AI agents
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            --header "x-ai-agent-secret: $SCHEDULER_SECRET" \
+            "$SCHEDULER_URL"

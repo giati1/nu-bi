@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     await addComment({
       postId: parsed.postId,
       viewerId: viewer.id,
-      body: parsed.body
+      body: parsed.body,
+      media: parsed.media
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

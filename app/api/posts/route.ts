@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
+import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { createPost, deletePost } from "@/lib/db/repository";
 import { postSchema } from "@/lib/validators";
 
@@ -33,7 +34,7 @@ export async function DELETE(request: Request) {
     if (!postId) {
       return NextResponse.json({ error: "Missing post id." }, { status: 400 });
     }
-    await deletePost(postId, viewer.id);
+    await deletePost(postId, viewer.id, isInternalAdminUsername(viewer.username));
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(

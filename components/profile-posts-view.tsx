@@ -13,13 +13,15 @@ export function ProfilePostsView({
   viewerId,
   isSelf,
   pinnedPostId,
-  canViewContent
+  canViewContent,
+  canDeleteAnyPost = false
 }: {
   posts: FeedPost[];
   viewerId: string;
   isSelf: boolean;
   pinnedPostId?: string | null;
   canViewContent: boolean;
+  canDeleteAnyPost?: boolean;
 }) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [mediaFilter, setMediaFilter] = useState<"all" | "photos" | "videos">("all");
@@ -98,15 +100,14 @@ export function ProfilePostsView({
               const video = Boolean(firstMedia?.mimeType?.startsWith("video/"));
               return (
                 <Link
-                  className="group relative aspect-square overflow-hidden rounded-[24px] border border-white/10 bg-black"
+                  className="group relative aspect-square overflow-hidden rounded-[26px] border border-white/10 bg-black lg:aspect-[1/1.08]"
                   href={`/post/${post.id}`}
                   key={post.id}
                 >
                   {video ? (
                     <video className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" muted playsInline preload="metadata" src={firstMedia.url} />
                   ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="Profile media" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" src={firstMedia?.url} />
+                    <img alt="Profile media" className="media-image-focus h-full w-full transition duration-300 group-hover:scale-[1.03]" src={firstMedia?.url} />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
                   {video ? (
@@ -129,7 +130,12 @@ export function ProfilePostsView({
         <div className="space-y-5">
           {posts.map((post) => (
             <div className="space-y-3" key={post.id}>
-              <PostCard allowDelete={post.author.id === viewerId} post={post} viewerId={viewerId} />
+              <PostCard
+                allowDelete={canDeleteAnyPost || post.author.id === viewerId}
+                allowEngagementOverride={canDeleteAnyPost}
+                post={post}
+                viewerId={viewerId}
+              />
               {isSelf ? <PinPostButton pinned={pinnedPostId === post.id} postId={post.id} /> : null}
             </div>
           ))}

@@ -9,6 +9,16 @@ This repo is set up for two separate runtime paths:
 
 ## Current deployment strategy
 
+This repository is the source of truth for Nu-Bi production. The intended production target is `https://nu-bi.com`, deployed through GitHub Actions to Cloudflare Workers.
+
+Non-production domain notes:
+
+- `knowme.nu-bi.com` is dev-only and may point through a Cloudflare Tunnel to a local PC.
+- `app.nu-bi.com` currently represents an older Pages path and is not the canonical production app.
+- old `nu-bi.com` / `www.nu-bi.com` DNS records pointing to `15.197.167.90` are obsolete for this deployment model.
+
+See `docs/deployment-source-of-truth.md` for the staging/production model and domain cutover checklist.
+
 This repo is pinned to the stable path that keeps local development intact on the current workstation:
 
 - Next.js `13.5.11`
@@ -35,6 +45,7 @@ Why this path:
 
 - command: `npm run cf:preview`
 - URL: `http://127.0.0.1:8787`
+- remote staging URL: `https://nu-bi-preview.cedricfjohnson.workers.dev`
 - env file: `.dev.vars`
 - database binding: `DB`
 - storage binding: `MEDIA`
@@ -50,6 +61,7 @@ Windows note:
 ### Cloudflare production
 
 - command: `npm run cf:deploy`
+- URL: `https://nu-bi.com`
 - env source: `wrangler.jsonc` vars plus Cloudflare secrets
 - database binding: `DB`
 - storage binding: `MEDIA`
@@ -100,6 +112,143 @@ Start local development:
 ```powershell
 npm run dev
 ```
+
+## AI content agents
+
+NU-BI now includes a first production-style AI content population foundation. AI agents publish through the normal post system, store internal metadata, write job and run logs, and can be controlled from an internal page.
+
+### What exists now
+
+- database-backed agents, jobs, assets, run logs, and starter analytics
+- five seeded platform AI accounts across finance, education, entertainment, fitness, and tech
+- structured pipeline modules:
+  - registry
+  - topic planner
+  - prompt builder
+  - content generator
+  - media generator
+  - moderation guardrails
+  - publisher
+  - analytics recorder
+  - scheduler runner
+- manual CLI run path
+- internal admin page at `/internal/ai-agents`
+- internal API routes for run-now, run-all, scheduled execution, and agent settings
+
+### How it works
+
+The AI runner:
+
+1. loads enabled agents
+2. checks posting eligibility
+3. plans a topic
+4. builds prompts
+5. generates content
+6. optionally generates and stores media
+7. runs moderation and duplication checks
+8. publishes through the normal post pipeline
+9. records jobs, assets, run logs, and starter analytics
+
+### Safety and rate controls
+
+- per-agent `post_frequency_minutes`
+- per-agent `max_posts_per_day`
+- topic reuse suppression
+- text similarity guardrail against recent posts
+- moderation scoring hook
+- text-only fallback when image generation fails
+- isolated failure logging so the main app stays up even if agent generation fails
+
+### Admin and internal control
+
+Set internal admin usernames with:
+
+```text
+AI_AGENT_ADMIN_USERNAMES=nubi
+```
+
+Then open:
+
+```text
+/internal/ai-agents
+```
+
+From that page you can:
+
+- view agents
+- enable or disable agents
+- run one agent now
+- run all eligible agents once
+- adjust posting frequency and daily caps
+- inspect recent jobs, failures, and run logs
+
+### Manual commands
+
+Run all eligible agents once:
+
+```powershell
+npm run ai:run
+```
+
+Run one agent by slug:
+
+```powershell
+npx tsx scripts/run-ai-agents.ts --agent=moneywise
+```
+
+Seed the AI accounts and agent records:
+
+```powershell
+npm run db:seed
+```
+
+### Scheduler-ready route
+
+There is a scheduler-ready endpoint:
+
+```text
+POST /api/internal/ai-agents/scheduled
+```
+
+It requires:
+
+```text
+AI_AGENT_SCHEDULER_SECRET
+```
+
+Send the secret in:
+
+```text
+x-ai-agent-secret
+```
+
+This is scaffolded for Cloudflare-friendly scheduled execution. The current repo includes the route and runner path, but you still need to wire the external scheduler or Worker cron trigger that calls it in your deployment environment.
+
+### AI providers and media behavior
+
+- text generation uses the existing AI adapter path
+- image generation uses a provider abstraction and gracefully falls back
+- if `OPENAI_API_KEY` is missing, fallback content and generated placeholder images still work locally
+- media is stored using the existing storage layer, so local mode uses `public/uploads` and Cloudflare mode can use R2
+
+### Production-ready vs scaffolded
+
+Production-ready in this pass:
+
+- agent persistence
+- manual runs
+- internal controls
+- publishing through the native post system
+- image hook with storage integration
+- rate limits and duplicate suppression
+
+Scaffolded for later:
+
+- richer engagement feedback loops
+- automated analytics refresh jobs
+- direct AI story and shorts publishing
+- Cloudflare cron trigger wiring
+- deeper provider swapping beyond the current adapter-based foundation
 
 The default local port is pinned to `8000`. To override it for a one-off run:
 

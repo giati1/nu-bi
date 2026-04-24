@@ -19,7 +19,11 @@ export async function createNotification(input: {
 
   if (
     (input.type === "like" && prefs && !prefs.likes_enabled) ||
+    (input.type === "story_reaction" && prefs && !prefs.likes_enabled) ||
+    (input.type === "repost" && prefs && !prefs.likes_enabled) ||
     (input.type === "comment" && prefs && !prefs.comments_enabled) ||
+    (input.type === "mention" && prefs && !prefs.comments_enabled) ||
+    (input.type === "story_reply" && prefs && !prefs.comments_enabled) ||
     (input.type === "follow" && prefs && !prefs.follows_enabled) ||
     (input.type === "message" && prefs && !prefs.messages_enabled)
   ) {

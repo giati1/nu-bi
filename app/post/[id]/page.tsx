@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { CommentComposer } from "@/components/comment-composer";
 import { PostCard } from "@/components/post-card";
+import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { getViewer } from "@/lib/auth/session";
 import { getCommentsForPost, getPostById } from "@/lib/db/repository";
 
@@ -22,12 +23,19 @@ export default async function PostDetailPage({
     notFound();
   }
 
+  const canDeleteAnyPost = viewer ? isInternalAdminUsername(viewer.username) : false;
+
   return (
     <AppShell
       subtitle="Post detail with media, comments, and public profile routing."
       title="Post detail"
     >
-      <PostCard allowDelete={post.author.id === viewer?.id} post={post} viewerId={viewer?.id ?? ""} />
+      <PostCard
+        allowDelete={canDeleteAnyPost || post.author.id === viewer?.id}
+        allowEngagementOverride={canDeleteAnyPost}
+        post={post}
+        viewerId={viewer?.id ?? ""}
+      />
       {viewer ? (
         <CommentComposer postId={post.id} />
       ) : (
@@ -48,7 +56,21 @@ export default async function PostDetailPage({
                 <p className="text-sm text-white/50">@{comment.author.username}</p>
               </div>
             </div>
-            <p className="mt-4 whitespace-pre-wrap text-white/80">{comment.body}</p>
+            {comment.body ? <p className="mt-4 whitespace-pre-wrap text-white/80">{comment.body}</p> : null}
+            {comment.media.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {comment.media.map((media) => (
+                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4" key={media.id}>
+                    <p className="mb-3 text-[11px] uppercase tracking-[0.16em] text-white/45">
+                      {media.mimeType?.startsWith("audio/") ? "Voice comment" : "Attachment"}
+                    </p>
+                    {media.mimeType?.startsWith("audio/") ? (
+                      <audio className="w-full" controls preload="metadata" src={media.url} />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </article>
         ))}
       </section>

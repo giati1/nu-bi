@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { all, get, run, transaction } from "@/lib/db/client";
 import { getAIAdapter } from "@/lib/ai";
+import { normalizeStoredFileUrl } from "@/lib/storage";
 import { createNotification } from "@/lib/notifications/service";
 import type {
   CommentRecord,
@@ -9,8 +10,10 @@ import type {
   MessageRecord,
   NotificationRecord,
   NotificationPreferences,
+  OnboardingSummary,
   ProfilePageData,
   SearchResults,
+  StoryRecord,
   UserSummary
 } from "@/types/domain";
 
@@ -29,6 +32,8 @@ type UserRow = {
   bio: string | null;
   website: string | null;
   location: string | null;
+  voice_intro_url?: string | null;
+  voice_intro_mime_type?: string | null;
   is_private?: number;
 };
 
@@ -56,6 +61,7 @@ type PostRow = {
 type MediaRow = {
   id: string;
   post_id: string;
+  storage_key?: string | null;
   url: string;
   mime_type: string | null;
 };
@@ -80,17 +86,63 @@ type PollOptionRow = {
   viewer_has_voted: number;
 };
 
+type RepostTargetRow = {
+  repost_id: string;
+  id: string;
+  body: string;
+  username: string;
+  display_name: string;
+};
+
+type StoryRow = {
+  id: string;
+  body: string;
+  media_url: string | null;
+  destination_path: string | null;
+  destination_label: string | null;
+  created_at: string;
+  expires_at: string | null;
+  viewer_has_seen: number;
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+};
+
 function mapUser(row: UserRow): ViewerRecord {
   return {
     id: row.id,
     email: row.email,
     username: row.username,
     displayName: row.display_name,
-    avatarUrl: row.avatar_url,
+    avatarUrl: normalizeStoredFileUrl(row.avatar_url),
     bio: row.bio,
+    voiceIntroUrl: normalizeStoredFileUrl(row.voice_intro_url),
+    voiceIntroMimeType: row.voice_intro_mime_type ?? null,
     website: row.website,
     location: row.location,
     isPrivate: Boolean(row.is_private)
+  };
+}
+
+function mapStory(row: StoryRow): StoryRecord {
+  return {
+    id: row.id,
+    body: row.body,
+    mediaUrl: normalizeStoredFileUrl(row.media_url),
+    destinationPath: row.destination_path,
+    destinationLabel: row.destination_label,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    viewerHasSeen: Boolean(row.viewer_has_seen),
+    author: {
+      id: row.user_id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+      bio: row.bio
+    }
   };
 }
 
@@ -99,7 +151,9 @@ function mapPost(
   mediaRows: MediaRow[],
   tagRows: TagRow[],
   mentionRows: MentionRow[],
-  pollOptionRows: PollOptionRow[]
+  pollOptionRows: PollOptionRow[],
+  repostTargetRows: RepostTargetRow[],
+  viewerRepostedPostIds: Set<string>
 ) {
   return rows.map<FeedPost>((row) => ({
     id: row.id,
@@ -112,14 +166,14 @@ function mapPost(
       id: row.user_id,
       username: row.username,
       displayName: row.display_name,
-      avatarUrl: row.avatar_url,
+      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
       bio: row.bio
     },
     media: mediaRows
       .filter((item) => item.post_id === row.id)
       .map((item) => ({
         id: item.id,
-        url: item.url,
+        url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
         mimeType: item.mime_type
       })),
     linkPreview:
@@ -167,9 +221,32 @@ function mapPost(
     viewCount: row.view_count ?? 0,
     viewerHasLiked: Boolean(row.viewer_has_liked),
     viewerHasSaved: Boolean((row as PostRow & { viewer_has_saved?: number }).viewer_has_saved),
+    viewerHasReposted: viewerRepostedPostIds.has(row.id),
     viewerFollowsAuthor: Boolean(row.viewer_follows_author),
-    repostOfPostId: row.repost_of_post_id
+    repostOfPostId: row.repost_of_post_id,
+    repostedPost: repostTargetRows
+      .filter((item) => item.repost_id === row.id)
+      .map((item) => ({
+        id: item.id,
+        authorUsername: item.username,
+        authorDisplayName: item.display_name,
+        body: item.body
+      }))[0] ?? null
   }));
+}
+
+function getPostLikeCountSql(postAlias = "p") {
+  return `COALESCE(
+    (SELECT peo.like_count FROM post_engagement_overrides peo WHERE peo.post_id = ${postAlias}.id),
+    (SELECT COUNT(*) FROM likes l WHERE l.post_id = ${postAlias}.id)
+  )`;
+}
+
+function getPostViewCountSql(postAlias = "p") {
+  return `COALESCE(
+    (SELECT peo.view_count FROM post_engagement_overrides peo WHERE peo.post_id = ${postAlias}.id),
+    (SELECT COUNT(*) FROM post_view_events pve WHERE pve.post_id = ${postAlias}.id)
+  )`;
 }
 
 async function getMediaByPostIds(postIds: string[]) {
@@ -178,7 +255,7 @@ async function getMediaByPostIds(postIds: string[]) {
   }
   const placeholders = postIds.map(() => "?").join(", ");
   return await all<MediaRow>(
-    `SELECT id, post_id, url, mime_type
+    `SELECT id, post_id, storage_key, url, mime_type
      FROM post_media
      WHERE post_id IN (${placeholders})
      ORDER BY created_at ASC`,
@@ -233,9 +310,45 @@ async function getPollOptionsByPostIds(postIds: string[], viewerId: string) {
   );
 }
 
+async function getRepostTargetsByPostIds(postIds: string[]) {
+  if (postIds.length === 0) {
+    return [];
+  }
+  const placeholders = postIds.map(() => "?").join(", ");
+  return await all<RepostTargetRow>(
+    `SELECT
+       repost.id AS repost_id,
+       original.id,
+       original.body,
+       author.username,
+       author.display_name
+     FROM posts repost
+     JOIN posts original ON original.id = repost.repost_of_post_id
+     JOIN users author ON author.id = original.user_id
+     WHERE repost.id IN (${placeholders})`,
+    postIds
+  );
+}
+
+async function getViewerRepostedPostIds(postIds: string[], viewerId: string) {
+  if (!viewerId || postIds.length === 0) {
+    return new Set<string>();
+  }
+  const placeholders = postIds.map(() => "?").join(", ");
+  const rows = await all<{ repost_of_post_id: string }>(
+    `SELECT DISTINCT repost_of_post_id
+     FROM posts
+     WHERE user_id = ?
+       AND deleted_at IS NULL
+       AND repost_of_post_id IN (${placeholders})`,
+    [viewerId, ...postIds]
+  );
+  return new Set(rows.map((row) => row.repost_of_post_id));
+}
+
 export async function getUserByEmail(email: string) {
   const row = await get<UserRow>(
-    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, COALESCE(p.is_private, 0) AS is_private
+    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM users u
      LEFT JOIN profiles p ON p.user_id = u.id
      WHERE lower(u.email) = lower(?)`,
@@ -262,7 +375,7 @@ export async function getUserWithPasswordByEmail(email: string) {
 
 export async function getUserByUsername(username: string) {
   const row = await get<UserRow>(
-    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, COALESCE(p.is_private, 0) AS is_private
+    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM users u
      LEFT JOIN profiles p ON p.user_id = u.id
      WHERE lower(u.username) = lower(?)`,
@@ -273,7 +386,7 @@ export async function getUserByUsername(username: string) {
 
 export async function getUserById(userId: string) {
   const row = await get<UserRow>(
-    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, COALESCE(p.is_private, 0) AS is_private
+    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM users u
      LEFT JOIN profiles p ON p.user_id = u.id
      WHERE u.id = ?`,
@@ -308,6 +421,8 @@ export async function updateProfile(input: {
   website: string | null;
   location: string | null;
   avatarUrl: string | null;
+  voiceIntroUrl?: string | null;
+  voiceIntroMimeType?: string | null;
   isPrivate: boolean;
 }) {
   const existing = await get<{ id: string }>(
@@ -327,9 +442,17 @@ export async function updateProfile(input: {
     );
     await run(
       `UPDATE profiles
-       SET bio = ?, website = ?, location = ?, is_private = ?, updated_at = CURRENT_TIMESTAMP
+       SET bio = ?, website = ?, location = ?, voice_intro_url = ?, voice_intro_mime_type = ?, is_private = ?, updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
-      [input.bio, input.website, input.location, Number(input.isPrivate), input.userId]
+      [
+        input.bio,
+        input.website,
+        input.location,
+        input.voiceIntroUrl ?? null,
+        input.voiceIntroMimeType ?? null,
+        Number(input.isPrivate),
+        input.userId
+      ]
     );
   });
 
@@ -350,7 +473,7 @@ export async function deleteSessionById(sessionId: string) {
 
 export async function getUserBySessionToken(sessionId: string) {
   const row = await get<UserRow>(
-    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, COALESCE(p.is_private, 0) AS is_private
+    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      LEFT JOIN profiles p ON p.user_id = u.id
@@ -362,21 +485,30 @@ export async function getUserBySessionToken(sessionId: string) {
 
 async function getPostRowsForSql(sql: string, params: unknown[]) {
   const rows = await all<PostRow>(sql, params);
-  const rankedIds = await getAIAdapter().rankFeed({
-    viewerId: String(params[0] ?? ""),
-    candidatePostIds: rows.map((row) => row.id)
-  });
+  let rankedIds = rows.map((row) => row.id);
+
+  try {
+    rankedIds = await getAIAdapter().rankFeed({
+      viewerId: String(params[0] ?? ""),
+      candidatePostIds: rows.map((row) => row.id)
+    });
+  } catch {
+    rankedIds = rows.map((row) => row.id);
+  }
+
   const ordered = rows.sort(
     (left, right) => rankedIds.indexOf(left.id) - rankedIds.indexOf(right.id)
   );
   const postIds = ordered.map((row) => row.id);
-  const [mediaRows, tagRows, mentionRows, pollOptionRows] = await Promise.all([
+  const [mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds] = await Promise.all([
     getMediaByPostIds(postIds),
     getTagsByPostIds(postIds),
     getMentionsByPostIds(postIds),
-    getPollOptionsByPostIds(postIds, String(params[0] ?? ""))
+    getPollOptionsByPostIds(postIds, String(params[0] ?? "")),
+    getRepostTargetsByPostIds(postIds),
+    getViewerRepostedPostIds(postIds, String(params[0] ?? ""))
   ]);
-  return mapPost(ordered, mediaRows, tagRows, mentionRows, pollOptionRows);
+  return mapPost(ordered, mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds);
 }
 
 async function canViewerAccessPrivateContent(targetUserId: string, viewerId: string) {
@@ -395,6 +527,48 @@ async function canViewerAccessPrivateContent(targetUserId: string, viewerId: str
 
 export async function getHomeFeed(viewerId: string) {
   return await getDiscoveryFeed(viewerId);
+}
+
+export async function getActiveStories(viewerId: string) {
+  const rows = await all<StoryRow>(
+    `SELECT
+       s.id,
+       s.body,
+       s.media_url,
+       s.destination_path,
+       s.destination_label,
+       s.created_at,
+       s.expires_at,
+       EXISTS(
+         SELECT 1 FROM story_views sv
+         WHERE sv.story_id = s.id AND sv.user_id = ?
+       ) AS viewer_has_seen,
+       u.id AS user_id,
+       u.username,
+       u.display_name,
+       u.avatar_url,
+       p.bio
+     FROM stories s
+     JOIN users u ON u.id = s.user_id
+     LEFT JOIN profiles p ON p.user_id = u.id
+     WHERE s.status = 'published'
+       AND (s.expires_at IS NULL OR s.expires_at > CURRENT_TIMESTAMP)
+       AND (
+         COALESCE(p.is_private, 0) = 0
+         OR u.id = ?
+         OR EXISTS(
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = ? AND f.following_id = u.id
+         )
+       )
+     ORDER BY
+       CASE WHEN s.user_id = ? THEN 0 ELSE 1 END,
+       s.created_at DESC
+     LIMIT 12`,
+    [viewerId, viewerId, viewerId, viewerId]
+  );
+
+  return rows.map(mapStory);
 }
 
 export async function getDiscoveryFeed(viewerId: string) {
@@ -416,9 +590,10 @@ export async function getDiscoveryFeed(viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -461,10 +636,10 @@ export async function getShortsFeed(viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
-       (SELECT COUNT(*) FROM post_view_events pve WHERE pve.post_id = p.id) AS view_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -500,6 +675,10 @@ export async function createPost(input: {
   status?: "published" | "draft" | "scheduled";
   scheduledFor?: string | null;
   repostOfPostId?: string | null;
+  aiAgentId?: string | null;
+  aiContentJobId?: string | null;
+  aiGenerationMode?: string | null;
+  aiTopicSeed?: string | null;
   media?: Array<{ storageKey: string; url: string; mimeType: string | null }>;
   pollOptions?: string[];
 }) {
@@ -511,9 +690,10 @@ export async function createPost(input: {
   await transaction(async () => {
       await run(
         `INSERT INTO posts (
-           id, user_id, body, repost_of_post_id, content_type, status, scheduled_for, link_url, link_title, link_description, link_domain
+           id, user_id, body, repost_of_post_id, content_type, status, scheduled_for, link_url, link_title, link_description, link_domain,
+           ai_agent_id, ai_content_job_id, ai_generation_mode, ai_topic_seed
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           input.userId,
@@ -525,7 +705,11 @@ export async function createPost(input: {
           linkPreview?.url ?? null,
           linkPreview?.title ?? null,
           linkPreview?.description ?? null,
-        linkPreview?.domain ?? null
+          linkPreview?.domain ?? null,
+          input.aiAgentId ?? null,
+          input.aiContentJobId ?? null,
+          input.aiGenerationMode ?? null,
+          input.aiTopicSeed ?? null
       ]
     );
     for (const media of input.media ?? []) {
@@ -561,7 +745,232 @@ export async function createPost(input: {
       );
     }
   });
+  for (const username of mentions) {
+    const mentioned = await get<{ id: string }>(
+      `SELECT id FROM users WHERE lower(username) = lower(?)`,
+      [username]
+    );
+    if (mentioned && mentioned.id !== input.userId) {
+      await createNotification({
+        userId: mentioned.id,
+        actorId: input.userId,
+        type: "mention",
+        entityType: "post",
+        entityId: id
+      });
+    }
+  }
+  if (input.repostOfPostId) {
+    const original = await get<{ user_id: string }>(`SELECT user_id FROM posts WHERE id = ?`, [input.repostOfPostId]);
+    if (original && original.user_id !== input.userId) {
+      await createNotification({
+        userId: original.user_id,
+        actorId: input.userId,
+        type: "repost",
+        entityType: "post",
+        entityId: input.repostOfPostId
+      });
+    }
+  }
   return await getPostById(id, input.userId);
+}
+
+export async function createStory(input: {
+  userId: string;
+  body: string;
+  mediaUrl?: string | null;
+  destinationPath?: string | null;
+  destinationLabel?: string | null;
+  expiresAt?: string | null;
+}) {
+  const id = crypto.randomUUID();
+  await run(
+    `INSERT INTO stories (
+       id, user_id, body, media_url, destination_path, destination_label, expires_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.userId,
+      input.body.trim(),
+      input.mediaUrl ?? null,
+      input.destinationPath ?? null,
+      input.destinationLabel ?? null,
+      input.expiresAt ?? null
+    ]
+  );
+
+  const row = await get<StoryRow>(
+    `SELECT
+       s.id,
+       s.body,
+       s.media_url,
+       s.destination_path,
+       s.destination_label,
+       s.created_at,
+       s.expires_at,
+       0 AS viewer_has_seen,
+       u.id AS user_id,
+       u.username,
+       u.display_name,
+       u.avatar_url,
+       p.bio
+     FROM stories s
+     JOIN users u ON u.id = s.user_id
+     LEFT JOIN profiles p ON p.user_id = u.id
+     WHERE s.id = ?`,
+    [id]
+  );
+
+  if (!row) {
+    throw new Error("Story could not be created.");
+  }
+
+  return mapStory(row);
+}
+
+export async function markStorySeen(input: { storyId: string; viewerId: string }) {
+  await run(
+    `INSERT INTO story_views (story_id, user_id, seen_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(story_id, user_id) DO UPDATE SET seen_at = CURRENT_TIMESTAMP`,
+    [input.storyId, input.viewerId]
+  );
+}
+
+export async function createStoryEngagement(input: {
+  storyId: string;
+  viewerId: string;
+  kind: "reaction" | "reply";
+  emoji?: string | null;
+  body?: string | null;
+  media?: Array<{ storageKey: string; url: string; mimeType: string | null }>;
+}) {
+  const story = await get<{ user_id: string }>(
+    `SELECT user_id FROM stories WHERE id = ? AND status = 'published'`,
+    [input.storyId]
+  );
+
+  if (!story) {
+    throw new Error("Story not found.");
+  }
+
+  await run(
+    `INSERT INTO story_engagements (id, story_id, user_id, kind, emoji, body, storage_key, media_url, mime_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      crypto.randomUUID(),
+      input.storyId,
+      input.viewerId,
+      input.kind,
+      input.emoji ?? null,
+      input.body?.trim() ?? null,
+      input.media?.[0]?.storageKey ?? null,
+      input.media?.[0]?.url ?? null,
+      input.media?.[0]?.mimeType ?? null
+    ]
+  );
+
+  if (story.user_id !== input.viewerId) {
+    await createNotification({
+      userId: story.user_id,
+      actorId: input.viewerId,
+      type: input.kind === "reaction" ? "story_reaction" : "story_reply",
+      entityType: "story",
+      entityId: input.storyId
+    });
+  }
+
+  return { ok: true };
+}
+
+export async function getStoryInbox(viewerId: string) {
+  const [items, metrics] = await Promise.all([
+    all<{
+      id: string;
+      kind: string;
+      emoji: string | null;
+      body: string | null;
+      created_at: string;
+      story_id: string;
+      story_body: string;
+      story_media_url: string | null;
+      media_url: string | null;
+      mime_type: string | null;
+      actor_id: string;
+      actor_username: string;
+      actor_display_name: string;
+      actor_avatar_url: string | null;
+      actor_bio: string | null;
+    }>(
+      `SELECT
+         se.id,
+         se.kind,
+         se.emoji,
+         se.body,
+         se.created_at,
+         s.id AS story_id,
+         s.body AS story_body,
+         s.media_url AS story_media_url,
+         se.media_url,
+         se.mime_type,
+         u.id AS actor_id,
+         u.username AS actor_username,
+         u.display_name AS actor_display_name,
+         u.avatar_url AS actor_avatar_url,
+         p.bio AS actor_bio
+       FROM story_engagements se
+       JOIN stories s ON s.id = se.story_id
+       JOIN users u ON u.id = se.user_id
+       LEFT JOIN profiles p ON p.user_id = u.id
+       WHERE s.user_id = ?
+       ORDER BY se.created_at DESC
+       LIMIT 20`,
+      [viewerId]
+    ),
+    get<{
+      reaction_count: number;
+      reply_count: number;
+    }>(
+      `SELECT
+         SUM(CASE WHEN se.kind = 'reaction' THEN 1 ELSE 0 END) AS reaction_count,
+         SUM(CASE WHEN se.kind = 'reply' THEN 1 ELSE 0 END) AS reply_count
+       FROM story_engagements se
+       JOIN stories s ON s.id = se.story_id
+       WHERE s.user_id = ?`,
+      [viewerId]
+    )
+  ]);
+
+  return {
+    reactionsCount: metrics?.reaction_count ?? 0,
+    repliesCount: metrics?.reply_count ?? 0,
+    items: items.map((item) => ({
+      id: item.id,
+      kind: item.kind as "reaction" | "reply",
+      emoji: item.emoji,
+      body: item.body,
+      media: item.media_url
+        ? {
+            url: normalizeStoredFileUrl(item.media_url) ?? item.media_url,
+            mimeType: item.mime_type
+          }
+        : null,
+      createdAt: item.created_at,
+      story: {
+        id: item.story_id,
+        body: item.story_body,
+        mediaUrl: normalizeStoredFileUrl(item.story_media_url)
+      },
+      actor: {
+        id: item.actor_id,
+        username: item.actor_username,
+        displayName: item.actor_display_name,
+        avatarUrl: normalizeStoredFileUrl(item.actor_avatar_url),
+        bio: item.actor_bio
+      }
+    }))
+  };
 }
 
 export async function updatePost(input: {
@@ -616,11 +1025,50 @@ export async function updatePost(input: {
   return await getPostById(input.postId, input.viewerId);
 }
 
-export async function deletePost(postId: string, viewerId: string) {
+export async function toggleRepost(postId: string, viewerId: string) {
+  const existing = await get<{ id: string }>(
+    `SELECT id
+     FROM posts
+     WHERE user_id = ? AND repost_of_post_id = ? AND deleted_at IS NULL
+     LIMIT 1`,
+    [viewerId, postId]
+  );
+
+  if (existing) {
+    await run(
+      `UPDATE posts
+       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND user_id = ?`,
+      [existing.id, viewerId]
+    );
+    return { reposted: false };
+  }
+
+  await createPost({
+    userId: viewerId,
+    body: "",
+    repostOfPostId: postId,
+    status: "published"
+  });
+
+  return { reposted: true };
+}
+
+export async function deletePost(postId: string, viewerId: string, canDeleteAnyPost = false) {
+  if (canDeleteAnyPost) {
+    await run(
+      `UPDATE posts
+       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND deleted_at IS NULL`,
+      [postId]
+    );
+    return;
+  }
+
   await run(
     `UPDATE posts
      SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ? AND user_id = ?`,
+     WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
     [postId, viewerId]
   );
 }
@@ -630,7 +1078,18 @@ export async function updatePostStatus(input: {
   viewerId: string;
   status: "published" | "draft" | "scheduled";
   scheduledFor?: string | null;
+  canUpdateAnyPost?: boolean;
 }) {
+  if (input.canUpdateAnyPost) {
+    await run(
+      `UPDATE posts
+       SET status = ?, scheduled_for = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND deleted_at IS NULL`,
+      [input.status, input.status === "scheduled" ? input.scheduledFor ?? null : null, input.postId]
+    );
+    return;
+  }
+
   await run(
     `UPDATE posts
      SET status = ?, scheduled_for = ?, updated_at = CURRENT_TIMESTAMP
@@ -646,9 +1105,10 @@ export async function getCreatorDashboard(viewerId: string) {
          p.id, p.body, p.content_type, p.status, p.scheduled_for, p.created_at, p.repost_of_post_id,
          p.link_url, p.link_title, p.link_description, p.link_domain,
          u.id AS user_id, u.username, u.display_name, u.avatar_url, pr.bio,
-         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+         ${getPostLikeCountSql("p")} AS like_count,
          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
          (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+         ${getPostViewCountSql("p")} AS view_count,
          EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
          EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
          0 AS viewer_follows_author
@@ -664,9 +1124,10 @@ export async function getCreatorDashboard(viewerId: string) {
          p.id, p.body, p.content_type, p.status, p.scheduled_for, p.created_at, p.repost_of_post_id,
          p.link_url, p.link_title, p.link_description, p.link_domain,
          u.id AS user_id, u.username, u.display_name, u.avatar_url, pr.bio,
-         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+         ${getPostLikeCountSql("p")} AS like_count,
          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
          (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+         ${getPostViewCountSql("p")} AS view_count,
          EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
          EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
          0 AS viewer_follows_author
@@ -682,9 +1143,10 @@ export async function getCreatorDashboard(viewerId: string) {
          p.id, p.body, p.content_type, p.status, p.scheduled_for, p.created_at, p.repost_of_post_id,
          p.link_url, p.link_title, p.link_description, p.link_domain,
          u.id AS user_id, u.username, u.display_name, u.avatar_url, pr.bio,
-         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+         ${getPostLikeCountSql("p")} AS like_count,
          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
          (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+         ${getPostViewCountSql("p")} AS view_count,
          EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
          EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
          0 AS viewer_follows_author
@@ -761,9 +1223,10 @@ export async function getPostById(postId: string, viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -808,9 +1271,10 @@ export async function getOwnedEditablePost(postId: string, viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        0 AS viewer_follows_author
@@ -882,9 +1346,10 @@ export async function getSavedPosts(viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -913,14 +1378,28 @@ export async function voteOnPoll(optionId: string, viewerId: string) {
   return await getPostById(option.post_id, viewerId);
 }
 
-export async function addComment(input: { postId: string; viewerId: string; body: string }) {
+export async function addComment(input: {
+  postId: string;
+  viewerId: string;
+  body: string;
+  media?: Array<{ storageKey: string; url: string; mimeType: string | null }>;
+}) {
   const id = crypto.randomUUID();
-  await run(`INSERT INTO comments (id, post_id, user_id, body) VALUES (?, ?, ?, ?)`, [
-    id,
-    input.postId,
-    input.viewerId,
-    input.body
-  ]);
+  await transaction(async () => {
+    await run(`INSERT INTO comments (id, post_id, user_id, body) VALUES (?, ?, ?, ?)`, [
+      id,
+      input.postId,
+      input.viewerId,
+      input.body
+    ]);
+    for (const media of input.media ?? []) {
+      await run(
+        `INSERT INTO comment_media (id, comment_id, storage_key, url, mime_type)
+         VALUES (?, ?, ?, ?, ?)`,
+        [crypto.randomUUID(), id, media.storageKey, media.url, media.mimeType]
+      );
+    }
+  });
 
   const postOwner = await get<{ user_id: string }>(`SELECT user_id FROM posts WHERE id = ?`, [
     input.postId
@@ -968,15 +1447,36 @@ export async function getCommentsForPost(postId: string) {
     [postId]
   );
 
+  const media = await all<{
+    id: string;
+    comment_id: string;
+    storage_key: string | null;
+    url: string;
+    mime_type: string | null;
+  }>(
+    `SELECT id, comment_id, storage_key, url, mime_type
+     FROM comment_media
+     WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)
+     ORDER BY created_at ASC`,
+    [postId]
+  );
+
   return rows.map<CommentRecord>((row) => ({
     id: row.id,
     body: row.body,
     createdAt: row.created_at,
+    media: media
+      .filter((item) => item.comment_id === row.id)
+      .map((item) => ({
+        id: item.id,
+        url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
+        mimeType: item.mime_type
+      })),
     author: {
       id: row.user_id,
       username: row.username,
       displayName: row.display_name,
-      avatarUrl: row.avatar_url,
+      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
       bio: row.bio
     }
   }));
@@ -1066,18 +1566,38 @@ export async function getProfilePage(username: string, viewerId: string) {
         total_views: number;
       }>(
         `SELECT
-           COUNT(DISTINCT p.id) AS total_posts,
-           COUNT(DISTINCT l.rowid) AS total_likes,
-           COUNT(DISTINCT c.id) AS total_comments,
-           COUNT(DISTINCT s.rowid) AS total_saved,
-           COUNT(DISTINCT v.id) AS total_views
-         FROM posts p
-         LEFT JOIN likes l ON l.post_id = p.id
-         LEFT JOIN comments c ON c.post_id = p.id
-         LEFT JOIN saved_posts s ON s.post_id = p.id
-         LEFT JOIN post_view_events v ON v.post_id = p.id
-         WHERE p.user_id = ? AND p.deleted_at IS NULL`,
-        [user.id]
+           (SELECT COUNT(*) FROM posts p WHERE p.user_id = ? AND p.deleted_at IS NULL) AS total_posts,
+           COALESCE(
+             (SELECT ueo.like_count FROM user_engagement_overrides ueo WHERE ueo.user_id = ?),
+             (
+               SELECT COUNT(DISTINCT l.rowid)
+               FROM posts p
+               LEFT JOIN likes l ON l.post_id = p.id
+               WHERE p.user_id = ? AND p.deleted_at IS NULL
+             )
+           ) AS total_likes,
+           (
+             SELECT COUNT(DISTINCT c.id)
+             FROM posts p
+             LEFT JOIN comments c ON c.post_id = p.id
+             WHERE p.user_id = ? AND p.deleted_at IS NULL
+           ) AS total_comments,
+           (
+             SELECT COUNT(DISTINCT s.rowid)
+             FROM posts p
+             LEFT JOIN saved_posts s ON s.post_id = p.id
+             WHERE p.user_id = ? AND p.deleted_at IS NULL
+           ) AS total_saved,
+           COALESCE(
+             (SELECT ueo.view_count FROM user_engagement_overrides ueo WHERE ueo.user_id = ?),
+             (
+               SELECT COUNT(DISTINCT v.id)
+               FROM posts p
+               LEFT JOIN post_view_events v ON v.post_id = p.id
+               WHERE p.user_id = ? AND p.deleted_at IS NULL
+             )
+           ) AS total_views`,
+        [user.id, user.id, user.id, user.id, user.id, user.id, user.id]
       )
     ]);
 
@@ -1100,9 +1620,10 @@ export async function getProfilePage(username: string, viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -1156,6 +1677,38 @@ export async function pinProfilePost(postId: string | null, viewerId: string) {
   ]);
 }
 
+export async function setUserEngagementOverride(input: {
+  userId: string;
+  likeCount: number;
+  viewCount: number;
+}) {
+  await run(
+    `INSERT INTO user_engagement_overrides (user_id, like_count, view_count, updated_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id) DO UPDATE SET
+       like_count = excluded.like_count,
+       view_count = excluded.view_count,
+       updated_at = CURRENT_TIMESTAMP`,
+    [input.userId, input.likeCount, input.viewCount]
+  );
+}
+
+export async function setPostEngagementOverride(input: {
+  postId: string;
+  likeCount: number;
+  viewCount: number;
+}) {
+  await run(
+    `INSERT INTO post_engagement_overrides (post_id, like_count, view_count, updated_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(post_id) DO UPDATE SET
+       like_count = excluded.like_count,
+       view_count = excluded.view_count,
+       updated_at = CURRENT_TIMESTAMP`,
+    [input.postId, input.likeCount, input.viewCount]
+  );
+}
+
 export async function searchAll(query: string, viewerId: string) {
   const like = `%${query}%`;
   const normalizedTag = query.startsWith("#") ? query.slice(1).toLowerCase() : null;
@@ -1189,9 +1742,10 @@ export async function searchAll(query: string, viewerId: string) {
        u.display_name,
        u.avatar_url,
        pr.bio,
-       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+       ${getPostLikeCountSql("p")} AS like_count,
        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
        (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of_post_id = p.id) AS repost_count,
+       ${getPostViewCountSql("p")} AS view_count,
        EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS viewer_has_liked,
        EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.id AND sp.user_id = ?) AS viewer_has_saved,
        EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = u.id AND f2.follower_id = ?) AS viewer_follows_author
@@ -1240,6 +1794,7 @@ export async function getConversationSummaries(viewerId: string) {
       last_message_body: string | null;
       last_message_created_at: string | null;
       last_message_sender_id: string | null;
+      last_message_media_mime_type: string | null;
       unread_count: number;
     }
   >(
@@ -1276,6 +1831,14 @@ export async function getConversationSummaries(viewerId: string) {
          LIMIT 1
        ) AS last_message_sender_id,
        (
+         SELECT mm.mime_type
+         FROM messages m
+         JOIN message_media mm ON mm.message_id = m.id
+         WHERE m.conversation_id = c.id
+         ORDER BY m.created_at DESC, mm.created_at ASC
+         LIMIT 1
+       ) AS last_message_media_mime_type,
+       (
          SELECT COUNT(*)
          FROM messages m
          JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = ?
@@ -1310,9 +1873,17 @@ export async function getConversationSummaries(viewerId: string) {
       ? {
           body: row.last_message_body,
           createdAt: row.last_message_created_at ?? row.updated_at,
-          senderId: row.last_message_sender_id ?? row.counterpart_id
+          senderId: row.last_message_sender_id ?? row.counterpart_id,
+          mediaMimeType: row.last_message_media_mime_type
         }
-      : null
+      : row.last_message_media_mime_type
+        ? {
+            body: "",
+            createdAt: row.last_message_created_at ?? row.updated_at,
+            senderId: row.last_message_sender_id ?? row.counterpart_id,
+            mediaMimeType: row.last_message_media_mime_type
+          }
+        : null
   }));
 }
 
@@ -1489,10 +2060,11 @@ export async function getConversationThread(conversationId: string, viewerId: st
   const media = await all<{
     id: string;
     message_id: string;
+    storage_key: string | null;
     url: string;
     mime_type: string | null;
   }>(
-    `SELECT id, message_id, url, mime_type
+    `SELECT id, message_id, storage_key, url, mime_type
      FROM message_media
      WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?)
      ORDER BY created_at ASC`,
@@ -1533,7 +2105,7 @@ export async function getConversationThread(conversationId: string, viewerId: st
       .filter((item) => item.message_id === row.id)
       .map((item) => ({
         id: item.id,
-        url: item.url,
+        url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
         mimeType: item.mime_type
       })),
     replyTo: row.reply_to_message_id
@@ -1554,7 +2126,7 @@ export async function getConversationThread(conversationId: string, viewerId: st
       id: row.sender_id,
       username: row.username,
       displayName: row.display_name,
-      avatarUrl: row.avatar_url,
+      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
       bio: row.bio
     }
   }));
@@ -1735,11 +2307,39 @@ export async function getNotifications(viewerId: string) {
           id: row.actor_id,
           username: row.actor_username ?? "unknown",
           displayName: row.actor_display_name ?? "Unknown",
-          avatarUrl: row.actor_avatar_url,
+          avatarUrl: normalizeStoredFileUrl(row.actor_avatar_url),
           bio: row.actor_bio
         }
       : null
   }));
+}
+
+export async function getActivitySummary(viewerId: string) {
+  const [unreadNotifications, unreadMessages, notifications] = await Promise.all([
+    get<{ count: number }>(
+      `SELECT COUNT(*) AS count
+       FROM notifications
+       WHERE user_id = ? AND read_at IS NULL`,
+      [viewerId]
+    ),
+    get<{ count: number }>(
+      `SELECT COUNT(*) AS count
+       FROM messages m
+       JOIN conversation_members cm
+         ON cm.conversation_id = m.conversation_id
+        AND cm.user_id = ?
+       WHERE m.sender_id <> ?
+         AND (cm.last_read_message_at IS NULL OR m.created_at > cm.last_read_message_at)`,
+      [viewerId, viewerId]
+    ),
+    getNotifications(viewerId)
+  ]);
+
+  return {
+    unreadNotificationCount: unreadNotifications?.count ?? 0,
+    unreadMessageCount: unreadMessages?.count ?? 0,
+    notifications: notifications.slice(0, 8)
+  };
 }
 
 export async function markNotificationsRead(viewerId: string) {
@@ -1855,6 +2455,33 @@ export async function getSuggestedUsers(viewerId: string) {
     .filter((row, index, rows) => rows.findIndex((item) => item.id === row.id) === index)
     .slice(0, 8)
     .map((row) => mapUser(row));
+}
+
+export async function getOnboardingSummary(viewerId: string): Promise<OnboardingSummary> {
+  const [viewer, interestsRow, followingRow, publishedRow] = await Promise.all([
+    getUserById(viewerId),
+    get<{ count: number }>(`SELECT COUNT(*) AS count FROM user_interests WHERE user_id = ?`, [viewerId]),
+    get<{ count: number }>(`SELECT COUNT(*) AS count FROM follows WHERE follower_id = ?`, [viewerId]),
+    get<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM posts WHERE user_id = ? AND deleted_at IS NULL AND status = 'published'`,
+      [viewerId]
+    )
+  ]);
+
+  const hasAvatar = Boolean(viewer?.avatarUrl);
+  const hasBio = Boolean(viewer?.bio?.trim() && viewer.bio.trim().length >= 16);
+  const hasLocationOrWebsite = Boolean(viewer?.location?.trim() || viewer?.website?.trim());
+  const profileScore = [hasAvatar, hasBio, hasLocationOrWebsite].filter(Boolean).length;
+
+  return {
+    profileScore,
+    hasAvatar,
+    hasBio,
+    hasLocationOrWebsite,
+    interestCount: interestsRow?.count ?? 0,
+    followingCount: followingRow?.count ?? 0,
+    publishedPostCount: publishedRow?.count ?? 0
+  };
 }
 
 export async function getTrendingTags() {

@@ -8,9 +8,9 @@ export function RelationshipActions({ targetUserId }: { targetUserId: string }) 
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <button
-        className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/70"
+        className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/82"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {

@@ -3,11 +3,13 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { InterestPicker } from "@/components/interest-picker";
 import { PostCard } from "@/components/post-card";
+import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { requirePageViewer } from "@/lib/auth/session";
 import { getDiscoveryFeed, getSuggestedUsers, getTrendingTags, getUserInterests } from "@/lib/db/repository";
 
 export default async function ExplorePage() {
   const viewer = await requirePageViewer("/explore");
+  const canDeleteAnyPost = isInternalAdminUsername(viewer.username);
 
   const [posts, suggestions, tags, interests] = await Promise.all([
     getDiscoveryFeed(viewer.id),
@@ -46,7 +48,7 @@ export default async function ExplorePage() {
           </section>
         </div>
       }
-      subtitle="Discovery feed, trending tags, and interest-aware user suggestions."
+      subtitle="Find people to follow, topics to explore, and posts worth jumping into."
       title="Explore"
     >
       <section className="glass-panel rounded-[28px] p-5">
@@ -56,7 +58,13 @@ export default async function ExplorePage() {
         </div>
       </section>
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} viewerId={viewer.id} />
+        <PostCard
+          key={post.id}
+          post={post}
+          viewerId={viewer.id}
+          allowDelete={canDeleteAnyPost || post.author.id === viewer.id}
+          allowEngagementOverride={canDeleteAnyPost}
+        />
       ))}
     </AppShell>
   );

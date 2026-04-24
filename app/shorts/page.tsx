@@ -17,7 +17,7 @@ export default async function ShortsPage() {
       {shorts.length === 0 ? (
         <EmptyState
           title="No shorts yet"
-          description="Upload a 15 to 30 second video from the composer to start the short-form feed."
+          description="Upload a short video up to 60 seconds from the composer to start the short-form feed."
         />
       ) : (
         <ShortsFeed posts={shorts} />

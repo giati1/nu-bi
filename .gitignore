@@ -7,6 +7,7 @@ dist
 coverage
 .vercel
 db/local.sqlite
+db/local.sqlite-*
 public/uploads/*
 !public/uploads/.gitkeep
 .env.local
@@ -16,6 +17,7 @@ public/uploads/*
 .dev.vars
 cloudflare-env.d.ts
 tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo
 *.log
 npm-debug.log*
 yarn-debug.log*

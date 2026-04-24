@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { env, isProduction } from "@/lib/config/env";
+import { env, shouldUseSecureCookies } from "@/lib/config/env";
 import {
   createSession,
   deleteSessionById,
@@ -10,16 +10,24 @@ import {
 export async function createAuthSession(userId: string) {
   const sessionId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + env.sessionMaxAgeDays * 24 * 60 * 60 * 1000).toISOString();
-  await createSession({
-    id: sessionId,
-    userId,
-    expiresAt
-  });
+  try {
+    await createSession({
+      id: sessionId,
+      userId,
+      expiresAt
+    });
+  } catch (error) {
+    console.error("[auth] failed to create local session", {
+      userId,
+      ...getErrorDetails(error)
+    });
+    throw error;
+  }
   const cookieStore = await cookies();
   cookieStore.set(env.sessionCookieName, sessionId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: isProduction(),
+    secure: shouldUseSecureCookies(),
     path: "/",
     expires: new Date(expiresAt)
   });
@@ -59,4 +67,17 @@ export async function requirePageViewer(nextPath: string) {
 
   const destination = new URLSearchParams({ next: nextPath });
   redirect(`/login?${destination.toString()}`);
+}
+
+function getErrorDetails(error: unknown) {
+  if (!(error instanceof Error)) {
+    return { message: "Unknown error" };
+  }
+
+  const sqliteError = error as Error & { code?: string; errno?: number };
+  return {
+    code: sqliteError.code,
+    errno: sqliteError.errno,
+    message: error.message
+  };
 }

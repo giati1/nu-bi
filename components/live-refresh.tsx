@@ -33,10 +33,6 @@ export function LiveRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
       });
     };
 
-    const timer = window.setInterval(() => {
-      refresh(false);
-    }, intervalMs);
-
     const onFocus = () => refresh(true);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -48,7 +44,6 @@ export function LiveRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

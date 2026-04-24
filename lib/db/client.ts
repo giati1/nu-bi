@@ -18,6 +18,7 @@ type SqliteDatabase = {
 };
 
 let sqliteDatabase: SqliteDatabase | null = null;
+let sqliteConnectionSetupPromise: Promise<void> | null = null;
 let sqliteSetupPromise: Promise<void> | null = null;
 
 function getD1Database() {
@@ -38,8 +39,22 @@ async function getSqliteDatabase() {
   if (!sqliteDatabase) {
     const sqlite3 = (await import("sqlite3")).default;
     sqliteDatabase = new sqlite3.Database(env.databasePath) as unknown as SqliteDatabase;
+    sqliteConnectionSetupPromise = configureLocalSqliteDatabase(sqliteDatabase);
   }
+
+  if (sqliteConnectionSetupPromise) {
+    await sqliteConnectionSetupPromise;
+  }
+
   return sqliteDatabase;
+}
+
+async function configureLocalSqliteDatabase(db: SqliteDatabase) {
+  await execOnDatabase(
+    db,
+    `PRAGMA busy_timeout = 5000;
+     PRAGMA journal_mode = WAL;`
+  );
 }
 
 async function rawRunLocal(sql: string, params: unknown[] = []) {
@@ -47,6 +62,7 @@ async function rawRunLocal(sql: string, params: unknown[] = []) {
   return await new Promise<RunResult>((resolve, reject) => {
     db.run(sql, params, function onRun(error) {
       if (error) {
+        logLocalSqliteFailure("run", sql, error);
         reject(error);
         return;
       }
@@ -86,15 +102,42 @@ async function rawAllLocal<T>(sql: string, params: unknown[] = []) {
 
 async function rawExecLocal(sql: string) {
   const db = await getSqliteDatabase();
+  await execOnDatabase(db, sql);
+}
+
+async function execOnDatabase(db: SqliteDatabase, sql: string) {
   await new Promise<void>((resolve, reject) => {
     db.exec(sql, (error) => {
       if (error) {
+        logLocalSqliteFailure("exec", sql, error);
         reject(error);
         return;
       }
       resolve();
     });
   });
+}
+
+function logLocalSqliteFailure(operation: "exec" | "run", sql: string, error: Error) {
+  console.error("[sqlite] local database write failed", {
+    operation,
+    databasePath: env.databasePath,
+    ...getSqliteErrorDetails(error),
+    sql: summarizeSql(sql)
+  });
+}
+
+function getSqliteErrorDetails(error: Error) {
+  const sqliteError = error as Error & { code?: string; errno?: number };
+  return {
+    code: sqliteError.code,
+    errno: sqliteError.errno,
+    message: error.message
+  };
+}
+
+function summarizeSql(sql: string) {
+  return sql.trim().replace(/\s+/g, " ").slice(0, 180);
 }
 
 async function ensureLocalDatabase() {

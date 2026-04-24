@@ -5,7 +5,8 @@ import { getAIAdapter } from "@/lib/ai";
 
 const schema = z.object({
   prompt: z.string().min(4).max(300),
-  style: z.string().min(2).max(40)
+  style: z.string().min(2).max(40),
+  mood: z.string().min(2).max(40).optional()
 });
 
 export async function POST(request: Request) {

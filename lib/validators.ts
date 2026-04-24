@@ -1,12 +1,15 @@
 import { z } from "zod";
 
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters.")
+  .max(24, "Username must be 24 characters or fewer.")
+  .refine((value) => !value.includes("/"), "Username cannot include a slash.");
+
 export const signupSchema = z.object({
   email: z.string().email(),
-  username: z
-    .string()
-    .min(3)
-    .max(24)
-    .regex(/^[a-zA-Z0-9_]+$/),
+  username: usernameSchema,
   displayName: z.string().min(2).max(50),
   password: z.string().min(8).max(100)
 });
@@ -57,9 +60,90 @@ export const postSchema = z
     }
   });
 
+export const storySchema = z
+  .object({
+    body: z.string().max(280).optional().default(""),
+    media: z
+      .array(
+        z.object({
+          storageKey: z.string(),
+          url: z.string(),
+          mimeType: z.string().nullable()
+        })
+      )
+      .max(1)
+      .optional()
+      .default([]),
+    destinationPath: z.string().max(200).optional().nullable(),
+    destinationLabel: z.string().max(40).optional().nullable()
+  })
+  .superRefine((value, ctx) => {
+    if (!value.body.trim() && value.media.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add a story caption or media."
+      });
+    }
+  });
+
+export const storySeenSchema = z.object({
+  storyId: z.string().uuid()
+});
+
+export const storyEngagementSchema = z
+  .object({
+    storyId: z.string().uuid(),
+    kind: z.enum(["reaction", "reply"]),
+    emoji: z.string().min(1).max(16).optional().nullable(),
+    body: z.string().max(240).optional().nullable(),
+    media: z
+      .array(
+        z.object({
+          storageKey: z.string(),
+          url: z.string(),
+          mimeType: z.string().nullable()
+        })
+      )
+      .max(1)
+      .optional()
+      .default([])
+  })
+  .superRefine((value, ctx) => {
+    if (value.kind === "reaction" && !value.emoji?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Pick a reaction."
+      });
+    }
+    if (value.kind === "reply" && !value.body?.trim() && value.media.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Write a reply or attach a voice note."
+      });
+    }
+  });
+
 export const commentSchema = z.object({
   postId: z.string().uuid(),
-  body: z.string().min(1).max(280)
+  body: z.string().max(280).optional().default(""),
+  media: z
+    .array(
+      z.object({
+        storageKey: z.string(),
+        url: z.string(),
+        mimeType: z.string().nullable()
+      })
+    )
+    .max(1)
+    .optional()
+    .default([])
+}).superRefine((value, ctx) => {
+  if (!value.body.trim() && value.media.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Add a comment or voice note."
+    });
+  }
 });
 
 export const followSchema = z.object({
@@ -67,6 +151,10 @@ export const followSchema = z.object({
 });
 
 export const likeSchema = z.object({
+  postId: z.string().uuid()
+});
+
+export const repostSchema = z.object({
   postId: z.string().uuid()
 });
 
@@ -96,16 +184,14 @@ export const messageSchema = z.object({
 });
 
 export const profileUpdateSchema = z.object({
-  username: z
-    .string()
-    .min(3)
-    .max(24)
-    .regex(/^[a-zA-Z0-9_]+$/),
+  username: usernameSchema,
   displayName: z.string().min(2).max(50),
   bio: z.string().max(240),
   website: z.string().url().optional().or(z.literal("")).nullable(),
   location: z.string().max(80).optional().or(z.literal("")).nullable(),
   avatarUrl: z.string().optional().or(z.literal("")).nullable(),
+  voiceIntroUrl: z.string().optional().or(z.literal("")).nullable(),
+  voiceIntroMimeType: z.string().optional().or(z.literal("")).nullable(),
   isPrivate: z.boolean().optional().default(false)
 });
 
