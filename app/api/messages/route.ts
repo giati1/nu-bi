@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
+import { queueAiDmAutoReply } from "@/lib/ai-agents/auto-replies";
 import { sendMessage } from "@/lib/db/repository";
 import { messageSchema } from "@/lib/validators";
 
@@ -14,6 +15,11 @@ export async function POST(request: Request) {
       body: parsed.body,
       replyToMessageId: parsed.replyToMessageId ?? null,
       media: parsed.media
+    });
+    queueAiDmAutoReply({
+      conversationId: result.conversationId,
+      triggerMessageId: result.messageId,
+      humanSenderId: viewer.id
     });
     return NextResponse.json(result);
   } catch (error) {
