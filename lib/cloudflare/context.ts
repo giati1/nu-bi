@@ -33,24 +33,71 @@ type CloudflareBindings = {
   };
 };
 
+type CloudflareContext = {
+  env?: CloudflareBindings;
+  cf?: unknown;
+  ctx?: unknown;
+} | null;
+
 let cachedBindings: CloudflareBindings | null | undefined;
+let bindingsPromise: Promise<CloudflareBindings | null> | null = null;
+let contextPromise: Promise<CloudflareContext> | null = null;
 
 export function getCloudflareBindings(): CloudflareBindings | null {
   if (cachedBindings !== undefined) {
     return cachedBindings;
   }
 
-  try {
-    const runtimeRequire = eval("require") as (id: string) => unknown;
-    const mod = runtimeRequire("@opennextjs/cloudflare") as {
-      getCloudflareContext?: () => { env?: CloudflareBindings };
-    };
-    cachedBindings = mod.getCloudflareContext?.().env ?? null;
+  return null;
+}
+
+export async function getCloudflareBindingsAsync(): Promise<CloudflareBindings | null> {
+  if (cachedBindings !== undefined) {
     return cachedBindings;
-  } catch {
-    cachedBindings = null;
-    return null;
   }
+
+  if (bindingsPromise) {
+    return bindingsPromise;
+  }
+
+  bindingsPromise = (async () => {
+    const context = await getCloudflareContextAsync();
+    cachedBindings = context?.env ?? null;
+    return cachedBindings;
+  })().finally(() => {
+    bindingsPromise = null;
+  });
+
+  return bindingsPromise;
+}
+
+export async function getCloudflareContextAsync(): Promise<CloudflareContext> {
+  if (contextPromise) {
+    return contextPromise;
+  }
+
+  contextPromise = (async () => {
+    try {
+      const mod = (await import("@opennextjs/cloudflare")) as {
+        getCloudflareContext?: () => Promise<CloudflareContext | undefined>;
+      };
+      return (await mod.getCloudflareContext?.()) ?? null;
+    } catch {
+      try {
+        const runtimeRequire = eval("require") as (id: string) => unknown;
+        const mod = runtimeRequire("@opennextjs/cloudflare") as {
+          getCloudflareContext?: () => Promise<CloudflareContext | undefined>;
+        };
+        return (await mod.getCloudflareContext?.()) ?? null;
+      } catch {
+        return null;
+      }
+    } finally {
+      contextPromise = null;
+    }
+  })();
+
+  return contextPromise;
 }
 
 export function isCloudflareRuntime() {

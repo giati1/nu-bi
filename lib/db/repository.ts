@@ -1,9 +1,12 @@
 import crypto from "crypto";
 import { all, get, run, transaction } from "@/lib/db/client";
+import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
+import { normalizeEmail, normalizeUsername } from "@/lib/identity";
 import { getAIAdapter } from "@/lib/ai";
 import { normalizeStoredFileUrl } from "@/lib/storage";
 import { createNotification } from "@/lib/notifications/service";
 import type {
+  AIPersonaSummary,
   CommentRecord,
   ConversationSummary,
   FeedPost,
@@ -347,17 +350,19 @@ async function getViewerRepostedPostIds(postIds: string[], viewerId: string) {
 }
 
 export async function getUserByEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
   const row = await get<UserRow>(
     `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM users u
      LEFT JOIN profiles p ON p.user_id = u.id
-     WHERE lower(u.email) = lower(?)`,
-    [email]
+     WHERE lower(trim(u.email)) = lower(trim(?))`,
+    [normalizedEmail]
   );
   return row ? mapUser(row) : null;
 }
 
 export async function getUserWithPasswordByEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
   return await get<{
     id: string;
     email: string;
@@ -368,18 +373,36 @@ export async function getUserWithPasswordByEmail(email: string) {
   }>(
     `SELECT id, email, username, password_hash, display_name, avatar_url
      FROM users
-     WHERE lower(email) = lower(?)`,
-    [email]
+     WHERE lower(trim(email)) = lower(trim(?))`,
+    [normalizedEmail]
+  );
+}
+
+export async function getUserWithPasswordByUsername(username: string) {
+  const normalizedUsername = normalizeUsername(username);
+  return await get<{
+    id: string;
+    email: string;
+    username: string;
+    password_hash: string;
+    display_name: string;
+    avatar_url: string | null;
+  }>(
+    `SELECT id, email, username, password_hash, display_name, avatar_url
+     FROM users
+     WHERE lower(trim(username)) = lower(trim(?))`,
+    [normalizedUsername]
   );
 }
 
 export async function getUserByUsername(username: string) {
+  const normalizedUsername = normalizeUsername(username);
   const row = await get<UserRow>(
     `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
      FROM users u
      LEFT JOIN profiles p ON p.user_id = u.id
-     WHERE lower(u.username) = lower(?)`,
-    [username]
+     WHERE lower(trim(u.username)) = lower(trim(?))`,
+    [normalizedUsername]
   );
   return row ? mapUser(row) : null;
 }
@@ -395,6 +418,58 @@ export async function getUserById(userId: string) {
   return row ? mapUser(row) : null;
 }
 
+export async function listRegularUsersForAiOutreach(input?: {
+  excludeUserIds?: string[];
+  limit?: number;
+}) {
+  const limit = Math.max(1, Math.min(input?.limit ?? 6, 20));
+  const excludeUserIds = input?.excludeUserIds ?? [];
+  const placeholders = excludeUserIds.map(() => "?").join(", ");
+  const excludedClause = excludeUserIds.length > 0 ? `AND u.id NOT IN (${placeholders})` : "";
+
+  const rows = await all<UserRow>(
+    `SELECT u.id,
+            u.email,
+            u.username,
+            u.display_name,
+            u.avatar_url,
+            p.bio,
+            p.website,
+            p.location,
+            p.voice_intro_url,
+            p.voice_intro_mime_type,
+            COALESCE(p.is_private, 0) AS is_private
+     FROM users u
+     LEFT JOIN profiles p ON p.user_id = u.id
+     LEFT JOIN ai_agents aa ON aa.linked_user_id = u.id
+     WHERE aa.id IS NULL
+       AND trim(COALESCE(u.username, '')) <> ''
+       ${excludedClause}
+     ORDER BY COALESCE(
+       (SELECT MAX(created_at) FROM posts post_activity WHERE post_activity.user_id = u.id AND post_activity.deleted_at IS NULL),
+       (SELECT MAX(created_at) FROM messages message_activity WHERE message_activity.sender_id = u.id),
+       u.updated_at,
+       u.created_at
+     ) DESC
+     LIMIT ?`,
+    [...excludeUserIds, limit]
+  );
+
+  return rows.map((row) => mapUser(row));
+}
+
+export async function getUserByOauthAccount(provider: string, providerAccountId: string) {
+  const row = await get<UserRow>(
+    `SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, p.bio, p.website, p.location, p.voice_intro_url, p.voice_intro_mime_type, COALESCE(p.is_private, 0) AS is_private
+     FROM oauth_accounts oa
+     JOIN users u ON u.id = oa.user_id
+     LEFT JOIN profiles p ON p.user_id = u.id
+     WHERE oa.provider = ? AND oa.provider_account_id = ?`,
+    [provider, providerAccountId]
+  );
+  return row ? mapUser(row) : null;
+}
+
 export async function createUser(input: {
   email: string;
   username: string;
@@ -402,15 +477,42 @@ export async function createUser(input: {
   displayName: string;
 }) {
   const id = crypto.randomUUID();
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedUsername = normalizeUsername(input.username);
   await transaction(async () => {
     await run(
       `INSERT INTO users (id, email, username, password_hash, display_name)
        VALUES (?, ?, ?, ?, ?)`,
-      [id, input.email, input.username, input.passwordHash, input.displayName]
+      [id, normalizedEmail, normalizedUsername, input.passwordHash, input.displayName]
     );
     await run(`INSERT INTO profiles (user_id, bio) VALUES (?, '')`, [id]);
   });
   return await getUserById(id);
+}
+
+export async function linkOauthAccount(input: {
+  userId: string;
+  provider: string;
+  providerAccountId: string;
+  providerEmail: string | null;
+}) {
+  const id = crypto.randomUUID();
+  await run(
+    `INSERT INTO oauth_accounts (
+       id,
+       user_id,
+       provider,
+       provider_account_id,
+       provider_email,
+       created_at,
+       updated_at
+     ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     ON CONFLICT(provider, provider_account_id) DO UPDATE SET
+       user_id = excluded.user_id,
+       provider_email = excluded.provider_email,
+       updated_at = CURRENT_TIMESTAMP`,
+    [id, input.userId, input.provider, input.providerAccountId, input.providerEmail]
+  );
 }
 
 export async function updateProfile(input: {
@@ -425,21 +527,22 @@ export async function updateProfile(input: {
   voiceIntroMimeType?: string | null;
   isPrivate: boolean;
 }) {
+  const normalizedUsername = normalizeUsername(input.username);
   const existing = await get<{ id: string }>(
-    `SELECT id FROM users WHERE lower(username) = lower(?) AND id <> ?`,
-    [input.username, input.userId]
+    `SELECT id FROM users WHERE lower(trim(username)) = lower(trim(?)) AND id <> ?`,
+    [normalizedUsername, input.userId]
   );
   if (existing) {
     throw new Error("That username is already taken.");
   }
 
   await transaction(async () => {
-    await run(
-      `UPDATE users
-       SET username = ?, display_name = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [input.username, input.displayName, input.avatarUrl, input.userId]
-    );
+  await run(
+    `UPDATE users
+     SET username = ?, display_name = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+      [normalizedUsername, input.displayName, input.avatarUrl, input.userId]
+  );
     await run(
       `UPDATE profiles
        SET bio = ?, website = ?, location = ?, voice_intro_url = ?, voice_intro_mime_type = ?, is_private = ?, updated_at = CURRENT_TIMESTAMP
@@ -1382,16 +1485,16 @@ export async function addComment(input: {
   postId: string;
   viewerId: string;
   body: string;
+  parentCommentId?: string | null;
   media?: Array<{ storageKey: string; url: string; mimeType: string | null }>;
 }) {
   const id = crypto.randomUUID();
   await transaction(async () => {
-    await run(`INSERT INTO comments (id, post_id, user_id, body) VALUES (?, ?, ?, ?)`, [
-      id,
-      input.postId,
-      input.viewerId,
-      input.body
-    ]);
+    await run(
+      `INSERT INTO comments (id, post_id, user_id, body, parent_comment_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, input.postId, input.viewerId, input.body, input.parentCommentId ?? null]
+    );
     for (const media of input.media ?? []) {
       await run(
         `INSERT INTO comment_media (id, comment_id, storage_key, url, mime_type)
@@ -1423,6 +1526,7 @@ export async function getCommentsForPost(postId: string) {
       id: string;
       body: string;
       created_at: string;
+      parent_comment_id: string | null;
       user_id: string;
       username: string;
       display_name: string;
@@ -1434,6 +1538,7 @@ export async function getCommentsForPost(postId: string) {
        c.id,
        c.body,
        c.created_at,
+       c.parent_comment_id,
        u.id AS user_id,
        u.username,
        u.display_name,
@@ -1461,25 +1566,67 @@ export async function getCommentsForPost(postId: string) {
     [postId]
   );
 
-  return rows.map<CommentRecord>((row) => ({
-    id: row.id,
-    body: row.body,
-    createdAt: row.created_at,
-    media: media
-      .filter((item) => item.comment_id === row.id)
-      .map((item) => ({
-        id: item.id,
-        url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
-        mimeType: item.mime_type
-      })),
-    author: {
-      id: row.user_id,
-      username: row.username,
-      displayName: row.display_name,
-      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
-      bio: row.bio
+  const mediaByCommentId = new Map<string, CommentRecord["media"]>();
+  for (const item of media) {
+    const current = mediaByCommentId.get(item.comment_id) ?? [];
+    current.push({
+      id: item.id,
+      url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
+      mimeType: item.mime_type
+    });
+    mediaByCommentId.set(item.comment_id, current);
+  }
+
+  const commentsById = new Map<string, CommentRecord>();
+  for (const row of rows) {
+    commentsById.set(row.id, {
+      id: row.id,
+      body: row.body,
+      createdAt: row.created_at,
+      parentCommentId: row.parent_comment_id,
+      depth: 0,
+      media: mediaByCommentId.get(row.id) ?? [],
+      author: {
+        id: row.user_id,
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+        bio: row.bio
+      }
+    });
+  }
+
+  const childrenByParentId = new Map<string, CommentRecord[]>();
+  const roots: CommentRecord[] = [];
+
+  for (const comment of commentsById.values()) {
+    if (!comment.parentCommentId || !commentsById.has(comment.parentCommentId)) {
+      roots.push(comment);
+      continue;
     }
-  }));
+
+    const siblings = childrenByParentId.get(comment.parentCommentId) ?? [];
+    siblings.push(comment);
+    childrenByParentId.set(comment.parentCommentId, siblings);
+  }
+
+  const ordered: CommentRecord[] = [];
+  const visit = (comment: CommentRecord, depth: number) => {
+    comment.depth = depth;
+    ordered.push(comment);
+    const children = (childrenByParentId.get(comment.id) ?? []).sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt)
+    );
+    for (const child of children) {
+      visit(child, Math.min(depth + 1, 2));
+    }
+  };
+
+  for (const root of roots.sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
+    visit(root, 0);
+  }
+
+  return ordered;
 }
 
 export async function toggleFollow(targetUserId: string, viewerId: string) {
@@ -1500,6 +1647,8 @@ export async function toggleFollow(targetUserId: string, viewerId: string) {
     viewerId,
     targetUserId
   ]);
+
+  await maybeSendAiWelcomeMessage(targetUserId, viewerId);
 
   if (viewerId !== targetUserId) {
     await createNotification({
@@ -1920,6 +2069,53 @@ export async function createOrGetDirectConversation(firstUserId: string, secondU
     ]);
   });
   return conversationId;
+}
+
+async function maybeSendAiWelcomeMessage(targetUserId: string, viewerId: string) {
+  if (targetUserId === viewerId) {
+    return;
+  }
+
+  const agent = await getAIAgentByLinkedUserId(targetUserId);
+  if (!agent?.enabled) {
+    return;
+  }
+
+  const conversationId = await createOrGetDirectConversation(targetUserId, viewerId);
+  const existingMessages = await get<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM messages WHERE conversation_id = ?`,
+    [conversationId]
+  );
+
+  if ((existingMessages?.count ?? 0) > 0) {
+    return;
+  }
+
+  const welcomeBody = buildAiWelcomeMessage(agent.displayName, agent.handle, agent.category, agent.description);
+  await sendMessage({
+    senderId: targetUserId,
+    conversationId,
+    body: welcomeBody
+  });
+}
+
+function buildAiWelcomeMessage(
+  displayName: string,
+  username: string,
+  category: string,
+  description: string | null
+) {
+  const specialty = formatSpecialty(category);
+  const detail = description?.trim()
+    ? description.trim().replace(/\s+/g, " ").slice(0, 120)
+    : `I post and chat about ${specialty.toLowerCase()}.`;
+
+  return [
+    `Hey, I'm ${displayName} (@${username}).`,
+    `Glad you followed. I'm your ${specialty.toLowerCase()} friend on NOMI.`,
+    detail,
+    "Send me a message anytime. I can help you find people to follow, shape a post, or get your NOMI profile moving."
+  ].join(" ");
 }
 
 export async function sendMessage(input: {
@@ -2457,6 +2653,72 @@ export async function getSuggestedUsers(viewerId: string) {
     .map((row) => mapUser(row));
 }
 
+export async function getAIPersonaDirectory(viewerId: string) {
+  const rows = await all<
+    {
+      id: string;
+      linked_user_id: string;
+      slug: string;
+      display_name: string;
+      handle: string;
+      category: string;
+      description: string | null;
+      avatar_url: string | null;
+      internal_only_notes: string | null;
+      follower_count: number;
+      viewer_is_following: number;
+    }
+  >(
+    `SELECT
+       aa.id,
+       aa.linked_user_id,
+       aa.slug,
+       aa.display_name,
+       aa.handle,
+       aa.category,
+       aa.description,
+       aa.avatar_url,
+       aa.internal_only_notes,
+       (SELECT COUNT(*) FROM follows f WHERE f.following_id = aa.linked_user_id) AS follower_count,
+       EXISTS(SELECT 1 FROM follows f2 WHERE f2.following_id = aa.linked_user_id AND f2.follower_id = ?) AS viewer_is_following
+     FROM ai_agents aa
+     WHERE aa.enabled = 1
+     ORDER BY aa.display_name ASC`,
+    [viewerId]
+  );
+
+  return rows.map<AIPersonaSummary>((row) => {
+    const noteMeta = parseAiPersonaMeta(row.internal_only_notes);
+    return {
+      id: row.id,
+      linkedUserId: row.linked_user_id,
+      slug: row.slug,
+      username: row.handle,
+      displayName: row.display_name,
+      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+      bio: row.description,
+      category: row.category,
+      specialty: formatSpecialty(row.category),
+      personality: formatPersonality(noteMeta.personalityType),
+      description: row.description,
+      isFollowing: Boolean(row.viewer_is_following),
+      followerCount: row.follower_count
+    };
+  });
+}
+
+export async function getAIFollowingCount(viewerId: string) {
+  const row = await get<{ count: number }>(
+    `SELECT COUNT(*) AS count
+     FROM follows f
+     WHERE f.follower_id = ?
+       AND EXISTS(SELECT 1 FROM ai_agents aa WHERE aa.linked_user_id = f.following_id AND aa.enabled = 1)`,
+    [viewerId]
+  );
+
+  return row?.count ?? 0;
+}
+
 export async function getOnboardingSummary(viewerId: string): Promise<OnboardingSummary> {
   const [viewer, interestsRow, followingRow, publishedRow] = await Promise.all([
     getUserById(viewerId),
@@ -2539,6 +2801,55 @@ export async function createReport(input: {
       input.details ?? null
     ]
   );
+}
+
+function parseAiPersonaMeta(value: string | null) {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(value) as { personalityType?: string | null };
+  } catch {
+    return {};
+  }
+}
+
+function formatSpecialty(category: string) {
+  const normalized = category.trim().toLowerCase();
+
+  switch (normalized) {
+    case "tech":
+      return "Tech Insider";
+    case "fitness":
+      return "Fitness Friend";
+    case "culture":
+      return "Culture Scout";
+    case "lifestyle":
+      return "Lifestyle Guide";
+    case "creative":
+      return "Creative Eye";
+    case "music":
+      return "Music Head";
+    default:
+      return titleCase(normalized || "AI Persona");
+  }
+}
+
+function formatPersonality(value?: string | null) {
+  if (!value?.trim()) {
+    return "Social";
+  }
+
+  return titleCase(value.replace(/[_-]+/g, " "));
+}
+
+function titleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
+    .join(" ");
 }
 
 function extractHashtags(body: string) {

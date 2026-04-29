@@ -1,5 +1,5 @@
 import { env, usesD1 } from "@/lib/config/env";
-import { getCloudflareBindings } from "@/lib/cloudflare/context";
+import { getCloudflareBindingsAsync, getCloudflareContextAsync } from "@/lib/cloudflare/context";
 
 type RunResult = {
   lastID: number;
@@ -21,13 +21,22 @@ let sqliteDatabase: SqliteDatabase | null = null;
 let sqliteConnectionSetupPromise: Promise<void> | null = null;
 let sqliteSetupPromise: Promise<void> | null = null;
 
-function getD1Database() {
-  return getCloudflareBindings()?.DB ?? null;
+async function getD1Database() {
+  return (await getCloudflareBindingsAsync())?.DB ?? null;
 }
 
-function requireD1Database() {
-  const d1 = getD1Database();
+async function requireD1Database() {
+  const d1 = await getD1Database();
   if (!d1) {
+    const cloudflareContext = await getCloudflareContextAsync();
+    console.error("[d1] Cloudflare DB binding unavailable", {
+      databaseDriver: env.databaseDriver,
+      cloudflareEnv: env.cloudflareEnv,
+      hasContext: Boolean(cloudflareContext),
+      contextKeys: cloudflareContext ? Object.keys(cloudflareContext) : [],
+      envKeys: cloudflareContext?.env ? Object.keys(cloudflareContext.env) : [],
+      context: cloudflareContext
+    });
     throw new Error(
       "DATABASE_DRIVER is set to d1, but the Cloudflare DB binding is unavailable. Use wrangler dev/deploy for D1, or switch DATABASE_DRIVER=sqlite for local Node development."
     );
@@ -180,7 +189,7 @@ async function ensureLocalDatabase() {
 
 export async function ensureDatabase() {
   if (usesD1()) {
-    requireD1Database();
+    await requireD1Database();
     return;
   }
 
@@ -189,7 +198,7 @@ export async function ensureDatabase() {
 
 export async function exec(sql: string) {
   if (usesD1()) {
-    const d1 = requireD1Database();
+    const d1 = await requireD1Database();
     await d1.exec(sql);
     return;
   }
@@ -200,7 +209,7 @@ export async function exec(sql: string) {
 
 export async function run(sql: string, params: unknown[] = []) {
   if (usesD1()) {
-    const d1 = requireD1Database();
+    const d1 = await requireD1Database();
     const result = await d1.prepare(sql).bind(...params).run();
     return {
       lastID: Number(result.meta?.last_row_id ?? 0),
@@ -214,7 +223,7 @@ export async function run(sql: string, params: unknown[] = []) {
 
 export async function get<T>(sql: string, params: unknown[] = []) {
   if (usesD1()) {
-    const d1 = requireD1Database();
+    const d1 = await requireD1Database();
     const result = await d1.prepare(sql).bind(...params).first<T>();
     return (result ?? undefined) as T | undefined;
   }
@@ -225,7 +234,7 @@ export async function get<T>(sql: string, params: unknown[] = []) {
 
 export async function all<T>(sql: string, params: unknown[] = []) {
   if (usesD1()) {
-    const d1 = requireD1Database();
+    const d1 = await requireD1Database();
     const result = await d1.prepare(sql).bind(...params).all<T>();
     return result.results ?? [];
   }
@@ -236,14 +245,14 @@ export async function all<T>(sql: string, params: unknown[] = []) {
 
 export async function transaction<T>(callback: () => Promise<T>) {
   if (usesD1()) {
-    const d1 = requireD1Database();
-    await d1.exec("BEGIN TRANSACTION");
     try {
-      const result = await callback();
-      await d1.exec("COMMIT");
-      return result;
+      // Cloudflare D1 rejects raw BEGIN/COMMIT/ROLLBACK SQL in Workers.
+      // Run the callback as an application-level unit of work instead.
+      return await callback();
     } catch (error) {
-      await d1.exec("ROLLBACK");
+      console.error("[d1] transaction callback failed; no SQL rollback is available in this runtime", {
+        message: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }

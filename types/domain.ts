@@ -9,6 +9,22 @@ export type UserSummary = {
   isPrivate?: boolean;
 };
 
+export type AIPersonaSummary = {
+  id: string;
+  linkedUserId: string;
+  slug: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  category: string;
+  specialty: string;
+  personality: string;
+  description: string | null;
+  isFollowing: boolean;
+  followerCount: number;
+};
+
 export type FeedPost = {
   id: string;
   body: string;
@@ -88,6 +104,8 @@ export type CommentRecord = {
   id: string;
   body: string;
   createdAt: string;
+  parentCommentId: string | null;
+  depth: number;
   media: Array<{
     id: string;
     url: string;

@@ -225,6 +225,11 @@ export async function getAIAgentBySlug(slug: string) {
   return row ? mapAgent(row) : null;
 }
 
+export async function getAIAgentByLinkedUserId(linkedUserId: string) {
+  const row = await get<AIAgentRow>(`SELECT * FROM ai_agents WHERE linked_user_id = ?`, [linkedUserId]);
+  return row ? mapAgent(row) : null;
+}
+
 export async function upsertAIAgent(input: {
   linkedUserId: string;
   slug: string;
