@@ -76,8 +76,8 @@ export async function generateAgentThreadReply(input: {
   isConversationStarter?: boolean;
 }) {
   const thread = await getConversationThread(input.conversationId, input.agentLinkedUserId);
-  const recentThread = thread
-    ?.slice(-6)
+  const recentConversation = thread
+    ?.slice(-8)
     .map((message) => `${message.sender.displayName}: ${message.body || "[attachment]"}`)
     .join("\n");
 
@@ -91,13 +91,16 @@ export async function generateAgentThreadReply(input: {
       input.prompt
         ? `Goal: ${input.prompt}`
         : input.isConversationStarter
-          ? "Goal: send a natural opening DM that feels friendly, current, and human."
-          : "Goal: continue a natural direct-message conversation.",
-      recentThread ? `Recent thread:\n${recentThread}` : "No prior messages yet."
+          ? "Goal: send a natural opening DM that feels friendly, attractive, current, and human."
+          : "Goal: continue a natural direct-message conversation with warmth, chemistry, and one easy reply path.",
+      "Keep it short. A little flirt energy is okay, but stay non-explicit and never sound like a bot or ad.",
+      recentConversation
+        ? `Recent conversation:\n${recentConversation}`
+        : "No prior messages yet."
     ]
       .filter(Boolean)
       .join("\n\n"),
-    intent: recentThread ? "curious" : "supportive",
-    mood: recentThread ? "playful" : "warm"
+    intent: recentConversation ? "curious" : "supportive",
+    mood: recentConversation ? "playful" : "warm"
   });
 }
