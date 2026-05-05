@@ -44,7 +44,7 @@ export function HomeAIToolsPanel() {
           <div className={cn("flex items-start justify-between gap-4 transition-all duration-500 delay-75", open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0")}>
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-accent-soft">AI tools</p>
-              <p className="mt-2 text-xl font-semibold text-white">Create without leaving the feed</p>
+              <p className="mt-2 text-xl font-semibold text-white">Open AI Tools</p>
             </div>
             <button
               className="rounded-full border border-white/10 p-2 text-white/75"
@@ -59,7 +59,8 @@ export function HomeAIToolsPanel() {
             {[
               "Rewrite captions",
               "Shape replies",
-              "Generate visuals"
+              "Animate photos",
+              "Generate videos"
             ].map((item, index) => (
               <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] px-4 py-4" key={item}>
                 <div
@@ -70,7 +71,7 @@ export function HomeAIToolsPanel() {
                   style={{ transitionDelay: `${120 + index * 55}ms` }}
                 >
                   <div className="rounded-2xl bg-white/[0.05] p-3 text-accent-soft">
-                    {item === "Generate visuals" ? <Wand2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                    {item.startsWith("Generate") ? <Wand2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                   </div>
                   <p className="font-medium text-white">{item}</p>
                 </div>
@@ -83,11 +84,11 @@ export function HomeAIToolsPanel() {
               "mt-5 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:bg-white/90 active:translate-y-0.5 active:scale-[0.985]",
               open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             )}
-            href="/ai"
+            href="/ai-tools"
             onClick={() => setOpen(false)}
             style={{ transitionDelay: "280ms" }}
           >
-            Open AI Studio
+            Open AI Tools
           </Link>
         </aside>
       </div>

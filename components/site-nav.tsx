@@ -23,7 +23,7 @@ const desktopSecondaryLinks = [
   { href: "/search", label: "Search", icon: Search },
   { href: "/shorts", label: "Shorts", icon: Clapperboard },
   { href: "/saved", label: "Saved", icon: Bookmark },
-  { href: "/ai", label: "AI Tools", icon: Sparkles }
+  { href: "/ai-tools", label: "AI Tools", icon: Sparkles }
 ];
 
 const mobileMoreLinks = [
@@ -33,7 +33,7 @@ const mobileMoreLinks = [
   { href: "/search", label: "Search", icon: Search },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/settings/profile", label: "Profile", icon: UserRoundCog },
-  { href: "/ai", label: "AI tools", icon: Sparkles }
+  { href: "/ai-tools", label: "AI Tools", icon: Sparkles }
 ];
 
 export function SiteNav() {
