@@ -1,41 +1,36 @@
-import { FileText, ImageIcon, MessageSquareText } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AIStudio } from "@/components/ai-studio";
 import { requirePageViewer } from "@/lib/auth/session";
-import { env } from "@/lib/config/env";
 
 export default async function AIPage() {
-  const viewer = await requirePageViewer("/ai");
-
-  const aiConfigured = Boolean(env.openAiApiKey);
+  await requirePageViewer("/ai");
 
   return (
     <AppShell
       title="AI Studio"
-      subtitle="Chat with NU-BI AI, generate visuals, and read scanned documents in one place."
+      subtitle="Generate photos and videos, chat with NU-BI AI, and read documents from one workspace."
     >
-      <section className="glass-panel rounded-[24px] border-accent/15 bg-accent/5 p-5">
-        <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">AI status</p>
-        <p className="mt-3 text-lg font-semibold">{aiConfigured ? "Live AI ready" : "Fallback AI mode"}</p>
-        <p className="mt-2 text-sm text-white/60">
-          {aiConfigured
-            ? "NU-BI AI is ready for captions, replies, inbox summaries, and image generation."
-            : "Add your AI key in environment settings to switch from local fallback behavior to live AI responses."}
-        </p>
-      </section>
-      <section className="grid gap-4 md:grid-cols-3">
-        {[
-          { label: "Voice Chat", detail: "Talk through ideas, captions, and replies.", Icon: MessageSquareText },
-          { label: "Image Generator", detail: "Generate branded visual concepts instantly.", Icon: ImageIcon },
-          { label: "Document Reader", detail: "Scan a page or upload text and get a clean readout.", Icon: FileText }
-        ].map(({ label, detail, Icon }) => (
-          <div className="glass-panel rounded-[24px] p-5" key={label}>
-            <Icon className="h-5 w-5 text-accent-soft" />
-            <p className="mt-4 font-semibold">{label}</p>
-            <p className="mt-2 text-sm text-white/60">{detail}</p>
+      <section className="panel-soft edge-light rounded-[28px] p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-accent-soft">AI navigation</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">All your AI tools are here</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
+              Use photo generation, video generation, chat, and document reading here.
+            </p>
           </div>
-        ))}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black" href="/messages">
+            Open messages
+          </Link>
+          <Link className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-medium text-white/82" href="/creator">
+            Open creator
+          </Link>
+        </div>
       </section>
+
       <AIStudio />
     </AppShell>
   );

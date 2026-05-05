@@ -59,7 +59,8 @@ export function HomeAIToolsPanel() {
             {[
               "Rewrite captions",
               "Shape replies",
-              "Generate visuals"
+              "Generate photos",
+              "Generate videos"
             ].map((item, index) => (
               <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] px-4 py-4" key={item}>
                 <div
@@ -70,7 +71,7 @@ export function HomeAIToolsPanel() {
                   style={{ transitionDelay: `${120 + index * 55}ms` }}
                 >
                   <div className="rounded-2xl bg-white/[0.05] p-3 text-accent-soft">
-                    {item === "Generate visuals" ? <Wand2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                    {item.startsWith("Generate") ? <Wand2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                   </div>
                   <p className="font-medium text-white">{item}</p>
                 </div>

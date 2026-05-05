@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Reply } from "lucide-react";
-import { useState } from "react";
+import { Reply, Volume2 } from "lucide-react";
+import { useRef, useState } from "react";
 import { MessageReactions } from "@/components/message-reactions";
 import { MessageComposer } from "@/components/message-composer";
 import { formatRelativeDate } from "@/lib/utils";
@@ -24,6 +24,8 @@ export function ConversationThread({
 }) {
   const [replyTo, setReplyTo] = useState<MessageRecord | null>(null);
   const [failedMediaIds, setFailedMediaIds] = useState<string[]>([]);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   function markMediaFailed(mediaId: string) {
     setFailedMediaIds((current) => (current.includes(mediaId) ? current : [...current, mediaId]));
@@ -121,6 +123,17 @@ export function ConversationThread({
                     <div className="mt-3 flex items-center justify-between gap-3 px-3 text-[11px] uppercase tracking-[0.12em] text-white/46">
                       <p>{formatRelativeDate(message.createdAt)}</p>
                       <div className="flex items-center gap-3">
+                        {!mine && message.body ? (
+                          <button
+                            className="inline-flex items-center gap-1 text-white/62 transition hover:text-white"
+                            disabled={speakingMessageId === message.id}
+                            onClick={() => playMessageSpeech(message.id, message.body)}
+                            type="button"
+                          >
+                            <Volume2 className="h-3.5 w-3.5" />
+                            {speakingMessageId === message.id ? "Speaking" : "Speak"}
+                          </button>
+                        ) : null}
                         <button
                           className="inline-flex items-center gap-1 text-white/62 transition hover:text-white"
                           onClick={() => setReplyTo(message)}
@@ -159,4 +172,40 @@ export function ConversationThread({
       />
     </>
   );
+
+  async function playMessageSpeech(messageId: string, body: string) {
+    try {
+      setSpeakingMessageId(messageId);
+      const response = await fetch("/api/ai/speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: body,
+          voice: "marin",
+          instructions: "Speak naturally, clearly, and like a warm human conversation partner."
+        })
+      });
+
+      if (!response.ok) {
+        setSpeakingMessageId(null);
+        return;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      audioRef.current?.pause();
+      if (audioRef.current?.src?.startsWith("blob:")) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => setSpeakingMessageId(null);
+      audio.onerror = () => setSpeakingMessageId(null);
+      await audio.play().catch(() => {
+        setSpeakingMessageId(null);
+      });
+    } catch {
+      setSpeakingMessageId(null);
+    }
+  }
 }

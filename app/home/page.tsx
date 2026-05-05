@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
+import { HomeAIToolsPanel } from "@/components/home-ai-tools-panel";
 import { HomeStoriesPanel } from "@/components/home-stories-panel";
 import { MoodFeedPanel } from "@/components/mood-feed-panel";
 import { Avatar } from "@/components/avatar";
@@ -202,6 +203,19 @@ export default async function HomePage() {
         >
           Create post
         </Link>
+      </section>
+      <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
+        <Link
+          className="rounded-[26px] border border-accent/35 bg-[linear-gradient(180deg,rgba(248,113,113,0.22),rgba(239,68,68,0.12))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(127,29,29,0.18)] transition hover:border-accent/55 hover:bg-[linear-gradient(180deg,rgba(248,113,113,0.28),rgba(239,68,68,0.16))]"
+          href="/ai"
+        >
+          <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">AI Studio</p>
+          <h2 className="mt-2 text-2xl font-semibold">Open AI tools</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/68">
+            Go straight to AI chat, image generation, video generation, and document reading.
+          </p>
+        </Link>
+        <HomeAIToolsPanel />
       </section>
       <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
       {feed.length === 0 ? (

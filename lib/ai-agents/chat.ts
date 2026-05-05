@@ -91,9 +91,10 @@ export async function generateAgentThreadReply(input: {
       input.prompt
         ? `Goal: ${input.prompt}`
         : input.isConversationStarter
-          ? "Goal: send a natural opening DM that feels friendly, attractive, current, and human."
-          : "Goal: continue a natural direct-message conversation with warmth, chemistry, and one easy reply path.",
-      "Keep it short. A little flirt energy is okay, but stay non-explicit and never sound like a bot or ad.",
+          ? "Goal: send a natural opening DM that feels friendly, current, and human."
+          : "Goal: continue a natural direct-message conversation. Answer questions helpfully, stay conversational, and keep your persona intact.",
+      "If the human asks a real question, answer it directly and clearly instead of dodging it.",
+      "Keep it short. Personality matters, but usefulness comes first. Never sound like a bot or ad.",
       recentConversation
         ? `Recent conversation:\n${recentConversation}`
         : "No prior messages yet."
