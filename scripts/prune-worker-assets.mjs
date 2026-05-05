@@ -2,14 +2,19 @@ import { access, rm } from "node:fs/promises";
 import path from "node:path";
 
 const generatedUploadsDir = path.resolve(process.cwd(), ".worker-next/assets/uploads");
+const nextBuildDir = path.resolve(process.cwd(), ".next");
 
 if (!(await pathExists(generatedUploadsDir))) {
   console.log(`No generated local uploads found at ${generatedUploadsDir}`);
-  process.exit(0);
+} else {
+  await removeWithRetries(generatedUploadsDir);
+  console.log(`Pruned generated local uploads from ${generatedUploadsDir}`);
 }
 
-await removeWithRetries(generatedUploadsDir);
-console.log(`Pruned generated local uploads from ${generatedUploadsDir}`);
+if (await pathExists(nextBuildDir)) {
+  await removeWithRetries(nextBuildDir);
+  console.log(`Removed local Next build output from ${nextBuildDir} to keep dev rebuilds clean`);
+}
 
 async function pathExists(targetPath) {
   try {
