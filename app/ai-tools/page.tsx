@@ -35,7 +35,7 @@ export default async function AIToolsPage() {
           <section className="p-5">
             <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">Provider note</p>
             <p className="mt-3 text-sm leading-6 text-white/62">
-              Video jobs and `/api/tts` are wired through provider abstractions. The current dashboard works with a mock contract so the deployed UI stays visible and testable now.
+              Video generation, persona chat, and `/api/tts` are wired to the active local AI providers. Errors should surface directly here if a provider key or model path is misconfigured.
             </p>
           </section>
         </div>

@@ -65,6 +65,7 @@ export function AIToolsDashboard() {
   const [textVideo, setTextVideo] = useState<VideoComposerState>(idleVideoState);
 
   const [uploadedImageName, setUploadedImageName] = useState("");
+  const [uploadedImageFile, setUploadedImageFile] = useState<File | null>(null);
   const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
   const [imagePreset, setImagePreset] = useState<ImageMotionPreset>("Basic Motion");
   const [imageCustomPrompt, setImageCustomPrompt] = useState("");
@@ -104,16 +105,16 @@ export function AIToolsDashboard() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[26px] border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm text-amber-50">
+      <section className="rounded-[26px] border border-emerald-400/20 bg-emerald-400/10 px-4 py-4 text-sm text-emerald-50">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-amber-200/90">Preview Mode</p>
-            <p className="mt-2 leading-6 text-amber-50/90">
-              This page is ready for product testing. Video generation and voice-note audio are still provider-backed mock flows until a real vendor is connected.
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/90">Live AI Routes</p>
+            <p className="mt-2 leading-6 text-emerald-50/90">
+              This workspace is now wired back to the real AI chat, video, and voice routes. If a provider fails, the error should surface here instead of silently falling back to a mock card.
             </p>
           </div>
-          <div className="rounded-full border border-amber-200/20 bg-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-amber-100/80">
-            UI ready
+          <div className="rounded-full border border-emerald-200/20 bg-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-emerald-100/80">
+            Provider-backed
           </div>
         </div>
       </section>
@@ -261,6 +262,7 @@ export function AIToolsDashboard() {
                   className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-white/70"
                   onClick={() => {
                     setUploadedImageName("");
+                    setUploadedImageFile(null);
                     setUploadedImagePreview(null);
                     setImageVideo(idleVideoState);
                   }}
@@ -554,7 +556,7 @@ export function AIToolsDashboard() {
           {voicePreviewAudioUrl ? (
             <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 px-4 py-4">
               <p className="text-sm font-semibold text-white">Voice preview ready</p>
-              <p className="mt-2 text-sm text-white/62">The current environment is returning a mock audio URL through `/api/tts`.</p>
+              <p className="mt-2 text-sm text-white/62">The current environment returned audio from `/api/tts` and is ready for playback.</p>
             </div>
           ) : null}
         </div>
@@ -595,7 +597,7 @@ export function AIToolsDashboard() {
         detail: payload.detail,
         provider: payload.provider,
         error: null,
-        result: null,
+        result: payload.result ?? null,
         actionPending: null
       });
     } catch (error) {
@@ -610,7 +612,7 @@ export function AIToolsDashboard() {
   }
 
   async function startImageVideoJob() {
-    if (!uploadedImageName) {
+    if (!uploadedImageName || !uploadedImageFile) {
       pushNotice("error", "Upload an image before starting image-to-video.");
       return;
     }
@@ -627,15 +629,18 @@ export function AIToolsDashboard() {
     });
 
     try {
+      const targetSize = imagePreset === "Product Ad" || imagePreset === "Luxury Promo" ? "1280x720" : "720x1280";
+      const preparedReferenceImage = await prepareReferenceImageFile(uploadedImageFile, targetSize);
+      const formData = new FormData();
+      formData.set("imageName", uploadedImageName);
+      formData.set("preset", imagePreset);
+      formData.set("customPrompt", imageCustomPrompt);
+      formData.set("durationSeconds", String(imageDuration));
+      formData.set("referenceImage", preparedReferenceImage);
+
       const response = await fetch("/api/video/image-to-video", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageName: uploadedImageName,
-          preset: imagePreset,
-          customPrompt: imageCustomPrompt,
-          durationSeconds: imageDuration
-        })
+        body: formData
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -649,7 +654,7 @@ export function AIToolsDashboard() {
         detail: payload.detail,
         provider: payload.provider,
         error: null,
-        result: null,
+        result: payload.result ?? null,
         actionPending: null
       });
     } catch (error) {
@@ -670,6 +675,7 @@ export function AIToolsDashboard() {
     }
 
     setUploadedImageName(file.name);
+    setUploadedImageFile(file);
     setImageVideo(idleVideoState);
     try {
       setUploadedImagePreview(await readFileAsDataUrl(file));
@@ -1019,7 +1025,7 @@ function VideoStatusCard({
             <p className="mt-2 text-sm text-white/58">{panelState.detail}</p>
             {!panelState.result?.videoUrl ? (
               <p className="mt-2 text-xs uppercase tracking-[0.16em] text-amber-200/75">
-                Demo preview only. Real download and posting activate after provider integration.
+                No video file returned yet. Check the provider response and try again.
               </p>
             ) : null}
           </div>
@@ -1146,5 +1152,55 @@ function readFileAsDataUrl(file: File) {
     };
     reader.onerror = () => reject(new Error("Could not read image."));
     reader.readAsDataURL(file);
+  });
+}
+
+async function prepareReferenceImageFile(file: File, targetSize: "720x1280" | "1280x720") {
+  const [targetWidth, targetHeight] = targetSize.split("x").map((value) => Number.parseInt(value, 10));
+  const image = await loadImageElement(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not prepare the uploaded image.");
+  }
+
+  const scale = Math.max(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const offsetX = (targetWidth - drawWidth) / 2;
+  const offsetY = (targetHeight - drawHeight) / 2;
+
+  context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value) {
+        resolve(value);
+        return;
+      }
+      reject(new Error("Could not prepare the uploaded image."));
+    }, "image/png");
+  });
+
+  const normalizedName = file.name.replace(/\.[^.]+$/, "") || "reference-image";
+  return new File([blob], `${normalizedName}-${targetWidth}x${targetHeight}.png`, { type: "image/png" });
+}
+
+function loadImageElement(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read image."));
+    };
+    image.src = objectUrl;
   });
 }

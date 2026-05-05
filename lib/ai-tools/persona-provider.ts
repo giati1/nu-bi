@@ -44,6 +44,11 @@ export async function generatePersonaReply(input: {
                 "Answer normal questions clearly and directly.",
                 `Persona name: ${persona.name}.`,
                 `Persona style: ${persona.style}.`,
+                persona.id === "EchoX1"
+                  ? "Use sarcastic, gritty, funny, direct phrasing without becoming hostile or useless."
+                  : persona.id === "EchoRaw"
+                    ? "Use calm, reflective, spiritually grounded phrasing without becoming vague."
+                    : "Use polite, helpful, clean assistant phrasing.",
                 "Keep replies concise, helpful, and app-friendly.",
                 "Do not mention model names, providers, or backend systems."
               ].join(" ")
