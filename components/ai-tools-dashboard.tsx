@@ -104,6 +104,20 @@ export function AIToolsDashboard() {
 
   return (
     <div className="space-y-5">
+      <section className="rounded-[26px] border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm text-amber-50">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-200/90">Preview Mode</p>
+            <p className="mt-2 leading-6 text-amber-50/90">
+              This page is ready for product testing. Video generation and voice-note audio are still provider-backed mock flows until a real vendor is connected.
+            </p>
+          </div>
+          <div className="rounded-full border border-amber-200/20 bg-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-amber-100/80">
+            UI ready
+          </div>
+        </div>
+      </section>
+
       {notices.length > 0 ? (
         <div className="space-y-2">
           {notices.map((notice) => (
@@ -165,6 +179,7 @@ export function AIToolsDashboard() {
           </div>
 
           <textarea
+            data-testid="text-to-video-prompt"
             className="mt-5 min-h-[148px] w-full rounded-[24px] border border-white/10 bg-black/35 px-4 py-4 text-sm text-white outline-none transition focus:border-accent"
             onChange={(event) => setTextPrompt(event.target.value)}
             placeholder="Create a luxury nightlife teaser with slow camera movement, glossy reflections, and confident red highlights."
@@ -190,6 +205,7 @@ export function AIToolsDashboard() {
           </div>
 
           <button
+            data-testid="text-to-video-generate"
             className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
             disabled={textVideo.status === "queued" || textVideo.status === "generating" || textVideo.status === "processing" || textPrompt.trim().length < 8}
             onClick={() => {
@@ -229,7 +245,7 @@ export function AIToolsDashboard() {
           </div>
 
           <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-white/14 bg-black/30 px-4 py-6 text-center transition hover:border-accent/35 hover:bg-accent/5">
-            <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageUpload} type="file" />
+            <input accept="image/jpeg,image/png,image/webp" className="hidden" data-testid="image-to-video-upload" onChange={handleImageUpload} type="file" />
             <p className="text-sm font-medium text-white">Upload image</p>
             <p className="mt-2 text-sm text-white/58">PNG, JPG, or WebP. The still becomes the shot anchor for motion.</p>
           </label>
@@ -239,7 +255,20 @@ export function AIToolsDashboard() {
               <div className="overflow-hidden rounded-[20px]">
                 <img alt="Uploaded preview" className="aspect-[4/5] w-full object-cover" src={uploadedImagePreview} />
               </div>
-              <p className="mt-3 text-sm text-white/62">{uploadedImageName}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-white/62">{uploadedImageName}</p>
+                <button
+                  className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-white/70"
+                  onClick={() => {
+                    setUploadedImageName("");
+                    setUploadedImagePreview(null);
+                    setImageVideo(idleVideoState);
+                  }}
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ) : null}
 
@@ -353,7 +382,7 @@ export function AIToolsDashboard() {
                 <div className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")} key={message.id}>
                   <div className={cn("max-w-[85%] space-y-2", message.role === "user" ? "items-end" : "items-start")}>
                     {message.role === "assistant" && message.displayMode !== "voice-note" ? (
-                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white">
+                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white" data-testid="persona-chat-reply">
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/58">
                             <Bot className="h-3.5 w-3.5" />
@@ -439,11 +468,12 @@ export function AIToolsDashboard() {
           </div>
 
           <div className="mt-4 rounded-[26px] border border-white/10 bg-white/[0.03] p-3">
-            <textarea
-              className="min-h-[116px] w-full rounded-[22px] border border-white/10 bg-black/35 px-4 py-4 text-sm text-white outline-none transition focus:border-accent"
-              onChange={(event) => setChatInput(event.target.value)}
-              placeholder="Ask a normal question, request an idea, or test the persona tone."
-              value={chatInput}
+          <textarea
+            data-testid="persona-chat-input"
+            className="min-h-[116px] w-full rounded-[22px] border border-white/10 bg-black/35 px-4 py-4 text-sm text-white outline-none transition focus:border-accent"
+            onChange={(event) => setChatInput(event.target.value)}
+            placeholder="Ask a normal question, request an idea, or test the persona tone."
+            value={chatInput}
             />
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
@@ -464,6 +494,7 @@ export function AIToolsDashboard() {
                 ))}
               </div>
               <button
+                data-testid="persona-chat-send"
                 className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
                 disabled={chatPending || !chatInput.trim()}
                 onClick={() => {
@@ -911,7 +942,7 @@ function VideoStatusCard({
 }) {
   if (panelState.status === "idle") {
     return (
-      <div className="rounded-[26px] border border-white/10 bg-black/20 px-4 py-5">
+      <div className="rounded-[26px] border border-white/10 bg-black/20 px-4 py-5" data-testid="video-card-idle">
         <p className="text-sm font-semibold text-white">No render started yet</p>
         <p className="mt-2 text-sm leading-6 text-white/58">
           Start a generation and this card will move through queued, generating, processing, and completed states.
@@ -922,7 +953,7 @@ function VideoStatusCard({
 
   if (panelState.status === "queued" || panelState.status === "generating" || panelState.status === "processing") {
     return (
-      <div className="rounded-[26px] border border-accent/20 bg-accent/5 px-4 py-5">
+      <div className="rounded-[26px] border border-accent/20 bg-accent/5 px-4 py-5" data-testid="video-card-loading">
         <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-accent-soft">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           {panelState.status}
@@ -939,7 +970,7 @@ function VideoStatusCard({
 
   if (panelState.status === "failed") {
     return (
-      <div className="rounded-[26px] border border-red-400/20 bg-red-500/10 px-4 py-5">
+      <div className="rounded-[26px] border border-red-400/20 bg-red-500/10 px-4 py-5" data-testid="video-card-failed">
         <p className="text-lg font-semibold text-red-100">Video generation failed.</p>
         <p className="mt-2 text-sm leading-6 text-red-100/80">{panelState.error ?? panelState.detail}</p>
         <button
@@ -954,7 +985,7 @@ function VideoStatusCard({
   }
 
   return (
-    <div className="rounded-[26px] border border-white/10 bg-black/20 p-3">
+    <div className="rounded-[26px] border border-white/10 bg-black/20 p-3" data-testid="video-card-completed">
       <div className="overflow-hidden rounded-[20px] border border-white/10 bg-black/30">
         {panelState.result?.previewMode === "video" && panelState.result.videoUrl ? (
           <video
@@ -986,6 +1017,11 @@ function VideoStatusCard({
           <div>
             <p className="text-lg font-semibold text-white">{panelState.result?.title ?? "Completed video"}</p>
             <p className="mt-2 text-sm text-white/58">{panelState.detail}</p>
+            {!panelState.result?.videoUrl ? (
+              <p className="mt-2 text-xs uppercase tracking-[0.16em] text-amber-200/75">
+                Demo preview only. Real download and posting activate after provider integration.
+              </p>
+            ) : null}
           </div>
           <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white/60">
             {panelState.result?.providerLabel ?? panelState.provider ?? "Provider"}
