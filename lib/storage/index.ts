@@ -1,5 +1,7 @@
 import { env, usesLocalStorage, usesR2 } from "@/lib/config/env";
-import { getCloudflareBindings } from "@/lib/cloudflare/context";
+import { getCloudflareBindingsAsync } from "@/lib/cloudflare/context";
+
+const STATIC_PUBLIC_STORAGE_PREFIX = "public:";
 
 export type UploadedFileLike = {
   name?: string;
@@ -11,7 +13,7 @@ export async function saveUploadedFile(file: UploadedFileLike) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const extension = guessExtension(file.type ?? "") || extname(file.name ?? "");
   const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`;
-  const cloudflare = getCloudflareBindings();
+  const cloudflare = await getCloudflareBindingsAsync();
 
   if (usesR2()) {
     if (!cloudflare?.MEDIA) {
@@ -74,7 +76,11 @@ export async function saveGeneratedDataUrl(input: { filenamePrefix: string; data
 }
 
 export async function getStoredFile(key: string) {
-  const cloudflare = getCloudflareBindings();
+  if (key.startsWith(STATIC_PUBLIC_STORAGE_PREFIX)) {
+    return await getStaticPublicFile(key.slice(STATIC_PUBLIC_STORAGE_PREFIX.length));
+  }
+
+  const cloudflare = await getCloudflareBindingsAsync();
 
   if (usesR2()) {
     if (!cloudflare?.MEDIA) {
@@ -120,6 +126,10 @@ export async function getStoredFile(key: string) {
 }
 
 export function toStoredFileUrl(storageKey: string) {
+  if (storageKey.startsWith(STATIC_PUBLIC_STORAGE_PREFIX)) {
+    return `/${storageKey.slice(STATIC_PUBLIC_STORAGE_PREFIX.length).replace(/^\/+/, "")}`;
+  }
+
   return `${env.publicMediaBasePath.replace(/\/$/, "")}/${encodeURIComponent(storageKey)}`;
 }
 
@@ -133,6 +143,9 @@ export function normalizeStoredFileUrl(url: string | null | undefined, storageKe
   }
 
   if (storageKey) {
+    if (storageKey.startsWith(STATIC_PUBLIC_STORAGE_PREFIX)) {
+      return toStoredFileUrl(storageKey);
+    }
     return toStoredFileUrl(storageKey);
   }
 
@@ -250,4 +263,27 @@ function parseDataUrl(dataUrl: string) {
     mimeType,
     bytes: new Uint8Array(buffer)
   };
+}
+
+async function getStaticPublicFile(relativePath: string) {
+  const normalized = relativePath.replace(/^\/+/, "").replace(/\//g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+
+  if (segments.some((segment) => segment === "..")) {
+    return null;
+  }
+
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const filePath = path.join(process.cwd(), "public", ...segments);
+
+  try {
+    const body = await fs.readFile(filePath);
+    return {
+      body,
+      contentType: guessMimeTypeFromKey(filePath)
+    };
+  } catch {
+    return null;
+  }
 }

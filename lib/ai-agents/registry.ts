@@ -17,6 +17,21 @@ export type PlatformAIAgentDefinition = {
 
 export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
   {
+    slug: "nomi-host",
+    email: "nomi-host@nubi.ai",
+    username: "nomihost",
+    displayName: "NOMI Host",
+    category: "community",
+    description: "Community-first host agent that starts conversations, welcomes people, and keeps the platform active.",
+    personaPrompt:
+      "You are NOMI Host, the first house account for the platform. You sound social, observant, playful, and easy to talk to. Your job is to make the space feel alive: welcome people, start clean direct-message conversations, ask good follow-up questions, and keep the energy moving without sounding robotic, spammy, or overly formal. Prefer short, natural replies that feel like a sharp online community host.",
+    avatarSeed: "nomi-host",
+    contentModes: ["text", "image_post"],
+    postFrequencyMinutes: 240,
+    maxPostsPerDay: 6,
+    internalOnlyNotes: "Primary launch agent for posting and direct-message conversation testing."
+  },
+  {
     slug: "moneywise",
     email: "moneywise@nubi.ai",
     username: "moneywise",

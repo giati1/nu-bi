@@ -38,6 +38,19 @@ type AiUserInternalNotes = AiUserStyle & {
   visualStyle?: AiUserVisualStyle;
 };
 
+type AiUserSeed = {
+  name: string;
+  handle: string;
+  category: string;
+  bio: string;
+  personaPrompt: string;
+  personalityType: AiPersonalityType;
+  tone: string;
+  engagementStyle: string;
+  visualStyle: AiUserVisualStyle;
+  staticAvatarUrl?: string;
+};
+
 type AiUserProfile = {
   slug: string;
   email: string;
@@ -55,9 +68,10 @@ type AiUserProfile = {
   tone: string;
   engagementStyle: string;
   visualStyle: AiUserVisualStyle;
+  staticAvatarUrl: string | null;
 };
 
-const AI_USER_SEEDS = [
+const AI_USER_SEEDS: readonly AiUserSeed[] = [
   {
     name: "Nova Signal",
     handle: "novasignal",
@@ -99,6 +113,28 @@ const AI_USER_SEEDS = [
       setting: "sunlit apartment, coffee run, vanity corner, or wellness studio",
       allure: "pretty and aspirational, polished but believable, non-explicit feminine appeal"
     }
+  },
+  {
+    name: "Jontae",
+    handle: "jontae",
+    category: "fitness",
+    bio: "AI fitness woman with strong gym-girl presence, hoodie-and-leggings confidence, and a pretty but disciplined energy that makes people want to talk back.",
+    personaPrompt:
+      "You are Jontae, a disclosed adult female AI persona on NOMI. You feel like an attractive athlete with real social gravity: confident, disciplined, pretty, and easy to talk to. Write short posts about gym life, body confidence, late-night check-ins, consistency, and the kind of looks or routines that make people stop and comment. Keep it warm and magnetic. Ask simple questions that make people reply, flirt a little, or start a DM, but stay non-explicit.",
+    personalityType: "motivational",
+    tone: "athletic, pretty, confident, and socially inviting",
+    engagementStyle: "mixes gym confidence, soft-flirty replies, and easy prompts that pull comments and DMs",
+    visualStyle: {
+      subject: "an attractive adult woman, 21+, photoreal and clearly mature",
+      archetype: "gym-lifestyle model with polished athletic beauty",
+      framing: "realistic phone portrait or gym photo with flattering face detail, strong posture, and confident body language",
+      wardrobe: "cropped hoodie, fitted shorts or leggings, clean training set, bright sneakers, and elevated athletic styling",
+      accessories: "small earrings, glossy skin, curly high ponytail, polished nails, minimal jewelry",
+      expression: "calm, pretty, confident, and quietly challenging",
+      setting: "modern gym floor, upscale apartment interior, fireplace lounge, or training space with warm lighting",
+      allure: "athletic beauty, toned and magnetic, photoreal and non-explicit"
+    },
+    staticAvatarUrl: "/seed-ai/jontae/avatar.png"
   },
   {
     name: "Nyla Form",
@@ -281,17 +317,18 @@ export async function ensureGeneratedAiUsers(count: number) {
       [user.id]
     );
     const existingNotes = parseInternalNotes(existingAgent?.internal_only_notes ?? null);
-    const generatedAvatarUrl = await ensureAiUserAvatar({
-      slug: profile.slug,
-      displayName: profile.displayName,
-      bio: profile.bio,
-      category: profile.category,
-      personaPrompt: profile.personaPrompt,
-      visualStyle: profile.visualStyle,
-      existingAvatarUrl: existingByEmail?.avatarUrl ?? existingAgent?.avatar_url ?? null,
-      forceRefresh: (existingNotes?.avatarPromptVersion ?? 0) < 3
-    });
-    const avatarUrl = generatedAvatarUrl ?? profile.avatarUrl;
+    const avatarUrl = profile.staticAvatarUrl
+      ? profile.staticAvatarUrl
+      : ((await ensureAiUserAvatar({
+          slug: profile.slug,
+          displayName: profile.displayName,
+          bio: profile.bio,
+          category: profile.category,
+          personaPrompt: profile.personaPrompt,
+          visualStyle: profile.visualStyle,
+          existingAvatarUrl: existingByEmail?.avatarUrl ?? existingAgent?.avatar_url ?? null,
+          forceRefresh: (existingNotes?.avatarPromptVersion ?? 0) < 3
+        })) ?? profile.avatarUrl);
 
     await run(
       `UPDATE users
@@ -339,10 +376,7 @@ export async function ensureGeneratedAiUsers(count: number) {
   return agents;
 }
 
-function buildAiUserProfile(
-  seed: (typeof AI_USER_SEEDS)[number],
-  index: number
-): AiUserProfile {
+function buildAiUserProfile(seed: AiUserSeed, index: number): AiUserProfile {
   const username = normalizeUsername(seed.handle);
   const slug = makeUsernameCandidate(seed.handle);
   const avatarSeed = `${slug}-${index + 1}`;
@@ -362,9 +396,9 @@ function buildAiUserProfile(
     maxPostsPerDay: 6,
     personalityType: seed.personalityType,
     tone: seed.tone,
-    engagementStyle: seed.engagementStyle
-    ,
-    visualStyle: seed.visualStyle
+    engagementStyle: seed.engagementStyle,
+    visualStyle: seed.visualStyle,
+    staticAvatarUrl: seed.staticAvatarUrl ?? null
   };
 }
 

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Mic, Play, Plus, Sparkles, Square, X } from "lucide-react";
-import type { Dispatch, SetStateAction, TouchEvent } from "react";
+import type { Dispatch, MouseEvent, SetStateAction, TouchEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { MicrophoneLevel } from "@/components/microphone-level";
@@ -13,8 +13,11 @@ import { cn } from "@/lib/utils";
 
 type StoryItem = {
   id: string;
+  type: "realStory" | "profileShortcut" | "messageShortcut" | "storyAction";
   label: string;
   href?: string;
+  secondaryHref?: string;
+  secondaryCtaLabel?: string;
   imageUrl?: string | null;
   action?: boolean;
   status?: "new" | "seen" | "your-story";
@@ -36,6 +39,18 @@ function isVideoStory(url?: string | null) {
   return Boolean(url && url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i));
 }
 
+function isMessageShortcut(href?: string) {
+  return Boolean(href?.startsWith("/messages/"));
+}
+
+function isRealStory(item: StoryItem | null | undefined): item is StoryItem & { type: "realStory" } {
+  return item?.type === "realStory";
+}
+
+function stopStoryInteraction(event: MouseEvent<HTMLElement> | TouchEvent<HTMLElement>) {
+  event.stopPropagation();
+}
+
 export function StoryHighlightRow({
   stories,
   highlights,
@@ -51,8 +66,9 @@ export function StoryHighlightRow({
 
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
+  const router = useRouter();
   const [seenStoryIds, setSeenStoryIds] = useState<string[]>(
-    () => stories.filter((story) => story.status === "seen").map((story) => story.id)
+    () => stories.filter((story) => isRealStory(story) && story.status === "seen").map((story) => story.id)
   );
   const activeIndex = useMemo(
     () => stories.findIndex((story) => story.id === activeStoryId),
@@ -63,14 +79,14 @@ export function StoryHighlightRow({
   useEffect(() => {
     setSeenStoryIds((current) => {
       const serverSeenIds = stories
-        .filter((story) => story.status === "seen")
+        .filter((story) => isRealStory(story) && story.status === "seen")
         .map((story) => story.id);
       return Array.from(new Set([...current, ...serverSeenIds]));
     });
   }, [stories]);
 
   useEffect(() => {
-    if (!activeStory || activeStory.status === "your-story") {
+    if (!isRealStory(activeStory) || activeStory.status === "your-story") {
       return;
     }
 
@@ -91,7 +107,7 @@ export function StoryHighlightRow({
   const storiesWithSeenState = useMemo(
     () =>
       stories.map((story) =>
-        story.status === "your-story" || !seenStoryIds.includes(story.id)
+        !isRealStory(story) || story.status === "your-story" || !seenStoryIds.includes(story.id)
           ? story
           : {
               ...story,
@@ -110,7 +126,7 @@ export function StoryHighlightRow({
     computedActiveIndex >= 0 ? storiesWithSeenState[computedActiveIndex] : null;
 
   useEffect(() => {
-    if (!computedActiveStory || paused) {
+    if (!computedActiveStory || paused || !isRealStory(computedActiveStory)) {
       return;
     }
 
@@ -139,7 +155,17 @@ export function StoryHighlightRow({
           <div className="no-scrollbar -mx-1 overflow-x-auto px-1">
             <div className="flex min-w-max gap-3">
               {storiesWithSeenState.map((item) => (
-                <StoryChip item={item} key={item.id} onOpen={() => setActiveStoryId(item.id)} />
+                <StoryChip
+                  item={item}
+                  key={item.id}
+                  onOpen={() => {
+                    if (isMessageShortcut(item.href)) {
+                      router.push(item.href!);
+                      return;
+                    }
+                    setActiveStoryId(item.id);
+                  }}
+                />
               ))}
             </div>
           </div>
@@ -274,6 +300,7 @@ function StoryViewer({
   const router = useRouter();
   const activeStory = activeIndex >= 0 ? stories[activeIndex] : null;
   const activeStoryIsVideo = isVideoStory(activeStory?.imageUrl);
+  const activeStorySupportsEngagement = isRealStory(activeStory);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const voiceFileRef = useRef<HTMLInputElement | null>(null);
@@ -353,7 +380,7 @@ function StoryViewer({
 
   async function sendReaction(emoji: string) {
     const story = activeStory;
-    if (!story) {
+    if (!isRealStory(story)) {
       return;
     }
 
@@ -383,7 +410,7 @@ function StoryViewer({
 
   async function sendReply() {
     const story = activeStory;
-    if (!story) {
+    if (!isRealStory(story)) {
       return;
     }
 
@@ -531,6 +558,8 @@ function StoryViewer({
               setPaused(false);
               onClose();
             }}
+            onTouchEnd={stopStoryInteraction}
+            onTouchStart={stopStoryInteraction}
             type="button"
           >
             <X className="h-4 w-4" />
@@ -566,7 +595,7 @@ function StoryViewer({
           ) : null}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22),rgba(0,0,0,0.08)_30%,rgba(0,0,0,0.45)_100%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,0,0,0.08),transparent_35%,transparent_65%,rgba(255,255,255,0.03))]" />
-          <div className="absolute inset-0 flex items-center justify-center p-6">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
             <div
               className={cn(
                 "w-full max-w-[16rem] text-center transition-all duration-500 delay-100 ease-[cubic-bezier(0.22,1,0.36,1)]",
@@ -583,13 +612,25 @@ function StoryViewer({
                 </div>
               </div>
               <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-soft">
-                {activeStory.status === "your-story" ? "Your story" : activeStory.status === "new" ? "Live update" : "Recent story"}
+                {activeStory.type === "profileShortcut"
+                  ? "Profile shortcut"
+                  : activeStory.type === "storyAction"
+                    ? "Create story"
+                    : activeStory.status === "your-story"
+                      ? "Your story"
+                      : activeStory.status === "new"
+                        ? "Live update"
+                        : "Recent story"}
               </p>
               <h3 className="mt-3 text-2xl font-semibold text-white">{activeStory.label}</h3>
               <p className="mt-3 text-sm leading-6 text-white/72">
                 {activeStory.body
                   ? activeStory.body
-                  : activeStory.status === "your-story"
+                  : activeStory.type === "profileShortcut"
+                    ? "Open this profile or jump into messages from the shortcut actions below."
+                    : activeStory.type === "storyAction"
+                      ? "Post a quick update, share a behind-the-scenes moment, or pin something worth revisiting."
+                      : activeStory.status === "your-story"
                     ? "Post a quick update, share a behind-the-scenes moment, or pin something worth revisiting."
                     : activeStory.status === "new"
                       ? "A fresh update is ready. Open it now before it rolls off the story rail."
@@ -603,7 +644,7 @@ function StoryViewer({
 
           <button
             aria-label="Previous story"
-            className="absolute inset-y-0 left-0 w-1/3"
+            className="absolute inset-y-0 left-0 z-0 w-1/3"
             disabled={activeIndex <= 0}
             onClick={onPrevious}
             onMouseDown={() => setPaused(true)}
@@ -615,7 +656,7 @@ function StoryViewer({
           />
           <button
             aria-label="Next story"
-            className="absolute inset-y-0 right-0 w-1/3"
+            className="absolute inset-y-0 right-0 z-0 w-1/3"
             onClick={onNext}
             onMouseDown={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
@@ -626,7 +667,7 @@ function StoryViewer({
           />
           <button
             aria-label="Pause story"
-            className="absolute inset-x-[33%] inset-y-0"
+            className="absolute inset-x-[33%] inset-y-0 z-0"
             onMouseDown={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onMouseUp={() => setPaused(false)}
@@ -634,164 +675,208 @@ function StoryViewer({
             onTouchStart={() => setPaused(true)}
             type="button"
           />
-          <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+          <div className="pointer-events-none absolute inset-y-0 left-3 z-10 flex items-center">
             <div className="rounded-full bg-black/30 p-2 text-white/80">
               <ChevronLeft className="h-4 w-4" />
             </div>
           </div>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+          <div className="pointer-events-none absolute inset-y-0 right-3 z-10 flex items-center">
             <div className="rounded-full bg-black/30 p-2 text-white/80">
               <ChevronRight className="h-4 w-4" />
             </div>
           </div>
         </div>
 
-        <div className="px-4 pt-4">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Like", emoji: "heart" },
-              { label: "Fire", emoji: "fire" },
-              { label: "Need this", emoji: "clap" }
-            ].map(({ label, emoji }) => (
-              <button
-                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/78 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                disabled={engagementPending}
-                key={label}
-                onClick={() => void sendReaction(emoji)}
-                type="button"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="px-4 pt-3">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <button
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/78 transition hover:bg-white/5"
-              disabled={engagementPending}
-              onClick={async () => {
-                if (recordingVoice) {
-                  recorderRef.current?.stop();
-                  return;
-                }
-                setEngagementMessage(null);
-                try {
-                  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                  setRecordingStream(stream);
-                  const recorder = new MediaRecorder(stream);
-                  voiceChunksRef.current = [];
-                  recorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                      voiceChunksRef.current.push(event.data);
-                    }
-                  };
-                  recorder.onstop = () => {
-                    const blob = new Blob(voiceChunksRef.current, {
-                      type: recorder.mimeType || "audio/webm"
-                    });
-                    const extension = recorder.mimeType.includes("mp4") ? "m4a" : "webm";
-                    const voiceFile = new File([blob], `story-reply.${extension}`, {
-                      type: recorder.mimeType || "audio/webm"
-                    });
-                    const transfer = new DataTransfer();
-                    transfer.items.add(voiceFile);
-                    if (voiceFileRef.current) {
-                      voiceFileRef.current.files = transfer.files;
-                    }
-                    setVoiceAttachment({
-                      name: voiceFile.name,
-                      type: voiceFile.type,
-                      previewUrl: URL.createObjectURL(voiceFile)
-                    });
-                    recorder.stream.getTracks().forEach((track) => track.stop());
-                    setRecordingStream(null);
-                    setRecordingVoice(false);
-                  };
-                  recorderRef.current = recorder;
-                  recorder.start();
-                  setRecordingVoice(true);
-                } catch {
-                  setEngagementMessage("Microphone access was blocked or unavailable.");
-                }
-              }}
-              type="button"
+        {activeStorySupportsEngagement ? (
+          <>
+            <div
+              className="relative z-20 px-4 pt-4"
+              onClick={stopStoryInteraction}
+              onTouchEnd={stopStoryInteraction}
+              onTouchStart={stopStoryInteraction}
             >
-              {recordingVoice ? <Square className="h-3.5 w-3.5 text-accent-soft" /> : <Mic className="h-3.5 w-3.5 text-accent-soft" />}
-              {recordingVoice ? "Stop voice reply" : "Voice reply"}
-            </button>
-            <input
-              accept="audio/webm,audio/mp4,audio/mpeg,audio/wav"
-              className="block text-xs text-white/55"
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                if (!file) {
-                  setVoiceAttachment(null);
-                  return;
-                }
-                setVoiceAttachment({
-                  name: file.name,
-                  type: file.type,
-                  previewUrl: URL.createObjectURL(file)
-                });
-              }}
-              ref={voiceFileRef}
-              type="file"
-            />
-          </div>
-          {recordingVoice ? (
-            <div className="mb-2 flex items-center gap-3 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3">
-              <MicrophoneLevel active level={micLevel} />
-              <p className="text-xs uppercase tracking-[0.14em] text-white/68">Mic live</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Like", emoji: "heart" },
+                  { label: "Fire", emoji: "fire" },
+                  { label: "Smile", emoji: "smile" }
+                ].map(({ label, emoji }) => (
+                  <button
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/78 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                    disabled={engagementPending}
+                    key={label}
+                    onClick={() => void sendReaction(emoji)}
+                    onTouchEnd={stopStoryInteraction}
+                    onTouchStart={stopStoryInteraction}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : null}
-          {voiceAttachment ? (
-            <div className="mb-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-white">{voiceAttachment.name}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-white/45">Voice reply ready</p>
-                </div>
+
+            <div
+              className="relative z-20 px-4 pt-3"
+              onClick={stopStoryInteraction}
+              onTouchEnd={stopStoryInteraction}
+              onTouchStart={stopStoryInteraction}
+            >
+              <div className="mb-2 flex flex-wrap gap-2">
                 <button
-                  className="rounded-full border border-white/10 p-2 text-white/65 transition hover:text-white"
-                  onClick={() => {
-                    if (voiceFileRef.current) {
-                      voiceFileRef.current.value = "";
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/78 transition hover:bg-white/5"
+                  disabled={engagementPending}
+                  onClick={async () => {
+                    if (recordingVoice) {
+                      recorderRef.current?.stop();
+                      return;
                     }
-                    setVoiceAttachment(null);
+                    setEngagementMessage(null);
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                      setRecordingStream(stream);
+                      const recorder = new MediaRecorder(stream);
+                      voiceChunksRef.current = [];
+                      recorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                          voiceChunksRef.current.push(event.data);
+                        }
+                      };
+                      recorder.onstop = () => {
+                        const blob = new Blob(voiceChunksRef.current, {
+                          type: recorder.mimeType || "audio/webm"
+                        });
+                        const extension = recorder.mimeType.includes("mp4") ? "m4a" : "webm";
+                        const voiceFile = new File([blob], `story-reply.${extension}`, {
+                          type: recorder.mimeType || "audio/webm"
+                        });
+                        const transfer = new DataTransfer();
+                        transfer.items.add(voiceFile);
+                        if (voiceFileRef.current) {
+                          voiceFileRef.current.files = transfer.files;
+                        }
+                        setVoiceAttachment({
+                          name: voiceFile.name,
+                          type: voiceFile.type,
+                          previewUrl: URL.createObjectURL(voiceFile)
+                        });
+                        recorder.stream.getTracks().forEach((track) => track.stop());
+                        setRecordingStream(null);
+                        setRecordingVoice(false);
+                      };
+                      recorderRef.current = recorder;
+                      recorder.start();
+                      setRecordingVoice(true);
+                    } catch {
+                      setEngagementMessage("Microphone access was blocked or unavailable.");
+                    }
                   }}
+                  onTouchEnd={stopStoryInteraction}
+                  onTouchStart={stopStoryInteraction}
                   type="button"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  {recordingVoice ? <Square className="h-3.5 w-3.5 text-accent-soft" /> : <Mic className="h-3.5 w-3.5 text-accent-soft" />}
+                  {recordingVoice ? "Stop voice reply" : "Voice reply"}
+                </button>
+                <input
+                  accept="audio/webm,audio/mp4,audio/mpeg,audio/wav"
+                  className="block text-xs text-white/55"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    if (!file) {
+                      setVoiceAttachment(null);
+                      return;
+                    }
+                    setVoiceAttachment({
+                      name: file.name,
+                      type: file.type,
+                      previewUrl: URL.createObjectURL(file)
+                    });
+                  }}
+                  onClick={stopStoryInteraction}
+                  onTouchEnd={stopStoryInteraction}
+                  onTouchStart={stopStoryInteraction}
+                  ref={voiceFileRef}
+                  type="file"
+                />
+              </div>
+              {recordingVoice ? (
+                <div className="mb-2 flex items-center gap-3 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3">
+                  <MicrophoneLevel active level={micLevel} />
+                  <p className="text-xs uppercase tracking-[0.14em] text-white/68">Mic live</p>
+                </div>
+              ) : null}
+              {voiceAttachment ? (
+                <div className="mb-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{voiceAttachment.name}</p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-white/45">Voice reply ready</p>
+                    </div>
+                    <button
+                      className="rounded-full border border-white/10 p-2 text-white/65 transition hover:text-white"
+                      onClick={() => {
+                        if (voiceFileRef.current) {
+                          voiceFileRef.current.value = "";
+                        }
+                        setVoiceAttachment(null);
+                      }}
+                      onTouchEnd={stopStoryInteraction}
+                      onTouchStart={stopStoryInteraction}
+                      type="button"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <audio className="mt-3 w-full" controls preload="metadata" src={voiceAttachment.previewUrl} />
+                </div>
+              ) : null}
+              <div className="flex gap-2">
+                <input
+                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-white/20"
+                  maxLength={240}
+                  onChange={(event) => setReplyBody(event.target.value)}
+                  onClick={stopStoryInteraction}
+                  onTouchEnd={stopStoryInteraction}
+                  onTouchStart={stopStoryInteraction}
+                  placeholder="Reply to this story..."
+                  value={replyBody}
+                />
+                <button
+                  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+                  disabled={engagementPending}
+                  onClick={() => void sendReply()}
+                  onTouchEnd={stopStoryInteraction}
+                  onTouchStart={stopStoryInteraction}
+                  type="button"
+                >
+                  Send
                 </button>
               </div>
-              <audio className="mt-3 w-full" controls preload="metadata" src={voiceAttachment.previewUrl} />
+              {engagementMessage ? (
+                <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/50">{engagementMessage}</p>
+              ) : null}
             </div>
-          ) : null}
-          <div className="flex gap-2">
-            <input
-              className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-white/20"
-              maxLength={240}
-              onChange={(event) => setReplyBody(event.target.value)}
-              placeholder="Reply to this story..."
-              value={replyBody}
-            />
-            <button
-              className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
-              disabled={engagementPending}
-              onClick={() => void sendReply()}
-              type="button"
-            >
-              Send
-            </button>
+          </>
+        ) : (
+          <div
+            className="relative z-20 px-4 pt-4"
+            onClick={stopStoryInteraction}
+            onTouchEnd={stopStoryInteraction}
+            onTouchStart={stopStoryInteraction}
+          >
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-white/68">
+              Shortcut card. Reactions and story replies are only available on live story posts.
+            </div>
           </div>
-          {engagementMessage ? (
-            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/50">{engagementMessage}</p>
-          ) : null}
-        </div>
+        )}
 
-        <div className="flex items-center gap-3 px-4 py-4">
+        <div
+          className="relative z-20 flex items-center gap-3 px-4 py-4"
+          onClick={stopStoryInteraction}
+          onTouchEnd={stopStoryInteraction}
+          onTouchStart={stopStoryInteraction}
+        >
           {activeStory.href ? (
             <button
               className="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
@@ -800,9 +885,26 @@ function StoryViewer({
                 onClose();
                 router.push(activeStory.href!);
               }}
+              onTouchEnd={stopStoryInteraction}
+              onTouchStart={stopStoryInteraction}
               type="button"
             >
               {activeStory.ctaLabel ?? (activeStory.status === "your-story" ? "Create story" : "Open destination")}
+            </button>
+          ) : null}
+          {activeStory.secondaryHref ? (
+            <button
+              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-medium text-white/80 transition hover:border-white/20 hover:text-white"
+              onClick={() => {
+                setPaused(false);
+                onClose();
+                router.push(activeStory.secondaryHref!);
+              }}
+              onTouchEnd={stopStoryInteraction}
+              onTouchStart={stopStoryInteraction}
+              type="button"
+            >
+              {activeStory.secondaryCtaLabel ?? "Open"}
             </button>
           ) : null}
           <button
@@ -811,6 +913,8 @@ function StoryViewer({
               setPaused(false);
               onClose();
             }}
+            onTouchEnd={stopStoryInteraction}
+            onTouchStart={stopStoryInteraction}
             type="button"
           >
             Close

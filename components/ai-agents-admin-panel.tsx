@@ -136,7 +136,7 @@ export function AIAgentsAdminPanel({
               const response = await fetch("/api/internal/ai-agents/bootstrap-generated", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ count: 8, seedPosts: true })
+                body: JSON.stringify({ count: 9, seedPosts: true })
               });
               const payload = (await response.json()) as {
                 error?: string;

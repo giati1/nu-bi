@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-04-25T14:26:55.941Z",
+  "cloudflare": {
+    "pageUrl": "https://dash.cloudflare.com/login",
+    "found": [],
+    "missing": [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REDIRECT_URI",
+      "AI_AGENT_SCHEDULER_SECRET"
+    ],
+    "loggedInLikely": false
+  },
+  "github": {
+    "pageUrl": "https://github.com/giati1/nu-bi/settings/secrets/actions",
+    "found": [],
+    "missing": [
+      "NUBI_AI_AGENT_SCHEDULER_SECRET"
+    ],
+    "loggedInLikely": false
+  },
+  "google": {
+    "pageUrl": "https://accounts.google.com/v3/signin/identifier?continue=https%3A%2F%2Fconsole.cloud.google.com%2Fapis%2Fcredentials&dsh=S-1592835014%3A1777127212549682&followup=https%3A%2F%2Fconsole.cloud.google.com%2Fapis%2Fcredentials&osid=1&passive=1209600&service=cloudconsole&flowName=GlifWebSignIn&flowEntry=ServiceLogin&ifkv=AT1y2_XXkv38dZVqN06T_YeNhf9EECcu0K3fQniQmsg7iXBSy3X2pY2Rrnp3aX0l9LT18pIm0Zn8ew",
+    "redirectUriPresent": false,
+    "missingRedirectUri": true,
+    "loggedInLikely": false
+  }
+}

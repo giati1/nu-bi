@@ -32,3 +32,14 @@ export function assertSchedulerSecret(request: Request) {
     throw new Error("FORBIDDEN");
   }
 }
+
+export function assertLocalAgentSecret(request: Request) {
+  if (!env.localAgentSecret) {
+    throw new Error("LOCAL_AGENT_SECRET is not configured.");
+  }
+
+  const header = request.headers.get("x-nubi-agent-secret")?.trim() ?? "";
+  if (!header || header !== env.localAgentSecret) {
+    throw new Error("FORBIDDEN");
+  }
+}

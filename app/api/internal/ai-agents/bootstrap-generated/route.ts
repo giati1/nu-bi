@@ -11,10 +11,10 @@ export async function POST(request: Request) {
       count?: number;
       seedPosts?: boolean;
     };
-    const requestedCount = Number(payload.count ?? 8);
+    const requestedCount = Number(payload.count ?? 9);
     const count = Number.isFinite(requestedCount)
       ? Math.max(1, Math.min(Math.trunc(requestedCount), 24))
-      : 8;
+      : 9;
     const agents = await ensureGeneratedAiUsers(count);
     const seededPosts = payload.seedPosts === false ? [] : await seedStarterPostsForAgents(agents, 3);
     const totalCreatedPosts = seededPosts.reduce((sum, item) => sum + item.createdPosts, 0);

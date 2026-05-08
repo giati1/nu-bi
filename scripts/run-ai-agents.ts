@@ -1,21 +1,55 @@
-import { ensureDatabase } from "../lib/db/client";
-import { runAgentNow, runAllEligibleAgentsOnce } from "../lib/ai-agents/scheduler";
+const DEFAULT_RUNNER_URL =
+  "https://nu-bi-preview.cedricfjohnson.workers.dev/api/internal/run-ai-agents";
 
 async function main() {
-  await ensureDatabase();
+  const runnerUrl = process.env.AI_AGENT_RUNNER_URL?.trim() || DEFAULT_RUNNER_URL;
 
-  const args = process.argv.slice(2);
-  const agentFlag = args.find((arg) => arg.startsWith("--agent="));
+  const response = await fetch(runnerUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
 
-  if (agentFlag) {
-    const agent = agentFlag.slice("--agent=".length).trim();
-    const result = await runAgentNow(agent);
-    console.log(JSON.stringify(result, null, 2));
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    console.error(
+      JSON.stringify(
+        {
+          runnerUrl,
+          status: response.status,
+          error: payload?.error ?? "Failed to run AI agents in preview."
+        },
+        null,
+        2
+      )
+    );
+    process.exitCode = 1;
     return;
   }
 
-  const results = await runAllEligibleAgentsOnce();
-  console.log(JSON.stringify(results, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        runnerUrl,
+        databaseDriver: payload?.databaseDriver ?? "unknown",
+        cloudflareEnv: payload?.cloudflareEnv ?? "unknown",
+        postsCreated: payload?.postsCreated ?? 0,
+        imagePostsCreated: payload?.imagePostsCreated ?? 0,
+        directMessagesCreated: payload?.directMessagesCreated ?? 0,
+        introductionsCreated: payload?.introductionsCreated ?? 0,
+        continuedThreads: payload?.continuedThreads ?? 0,
+        regularAccountsContacted: payload?.regularAccountsContacted ?? 0,
+        topicHeadline: payload?.topicHeadline ?? null,
+        results: payload?.results ?? []
+      },
+      null,
+      2
+    )
+  );
 }
 
 void main();
+
+export {};

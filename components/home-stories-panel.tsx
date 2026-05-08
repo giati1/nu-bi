@@ -8,8 +8,11 @@ import { StoryHighlightRow } from "@/components/story-highlight-row";
 
 type StoryItem = {
   id: string;
+  type: "realStory" | "profileShortcut" | "messageShortcut" | "storyAction";
   label: string;
   href?: string;
+  secondaryHref?: string;
+  secondaryCtaLabel?: string;
   imageUrl?: string | null;
   action?: boolean;
   status?: "new" | "seen" | "your-story";

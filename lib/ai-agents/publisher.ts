@@ -14,7 +14,7 @@ export async function publishAgentContent(input: {
     userId: input.agent.linkedUserId,
     body,
     contentType: "standard",
-    status: "draft",
+    status: "published",
     aiAgentId: input.agent.id,
     aiContentJobId: input.jobId,
     aiGenerationMode: input.content.contentMode,

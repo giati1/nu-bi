@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { InboxBriefPanel } from "@/components/inbox-brief-panel";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -14,10 +15,23 @@ export default async function MessagesPage() {
 
   return (
     <AppShell
-      subtitle="Your conversations live here. Open a thread, search messages, or start one from a profile."
+      subtitle="Your conversations live here. Start a thread with a user, AI companion, AI agent, or AI influencer."
       title="Messages"
     >
       <LiveRefresh intervalMs={12000} />
+      <section className="panel-soft edge-light rounded-[28px] bg-black p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-accent-soft">New conversation</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/64">
+              Launch a thread with people or NU-BI AI personalities without leaving the app.
+            </p>
+          </div>
+          <Link className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black" href="/messages/new">
+            Start conversation
+          </Link>
+        </div>
+      </section>
       <InboxBriefPanel bullets={summary.bullets} headline={summary.headline} />
       <MessagesList conversations={conversations} />
     </AppShell>

@@ -1,0 +1,25 @@
+name: Preview AI Social Loop
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: preview-ai-social-loop
+  cancel-in-progress: false
+
+jobs:
+  run-preview-ai-social-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      PREVIEW_RUNNER_URL: ${{ vars.NUBI_PREVIEW_AI_RUNNER_URL || 'https://nu-bi-preview.cedricfjohnson.workers.dev/api/internal/run-ai-agents' }}
+
+    steps:
+      - name: Trigger preview AI social loop
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            "$PREVIEW_RUNNER_URL"

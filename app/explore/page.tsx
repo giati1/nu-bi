@@ -5,6 +5,7 @@ import { InterestPicker } from "@/components/interest-picker";
 import { PostCard } from "@/components/post-card";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { requirePageViewer } from "@/lib/auth/session";
+import { getProfileHref } from "@/lib/identity";
 import { getDiscoveryFeed, getSuggestedUsers, getTrendingTags, getUserInterests } from "@/lib/db/repository";
 
 export default async function ExplorePage() {
@@ -36,13 +37,30 @@ export default async function ExplorePage() {
             <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Suggestions</p>
             <div className="mt-4 space-y-3">
               {suggestions.map((user) => (
-                <Link className="flex items-center gap-3" href={`/profile/${user.username}`} key={user.id}>
-                  <Avatar className="h-10 w-10" name={user.displayName} src={user.avatarUrl} />
-                  <div>
-                    <p className="text-sm font-medium">{user.displayName}</p>
-                    <p className="text-xs text-white/50">@{user.username}</p>
-                  </div>
-                </Link>
+                (() => {
+                  const profileHref = getProfileHref(user.username);
+                  const content = (
+                    <>
+                      <Avatar className="h-10 w-10" name={user.displayName} src={user.avatarUrl} />
+                      <div>
+                        <p className="text-sm font-medium">{user.displayName}</p>
+                        <p className="text-xs text-white/50">
+                          {user.username ? `@${user.username}` : "Profile unavailable"}
+                        </p>
+                      </div>
+                    </>
+                  );
+
+                  if (!profileHref) {
+                    return <div className="flex items-center gap-3" key={user.id}>{content}</div>;
+                  }
+
+                  return (
+                    <Link className="flex items-center gap-3" href={profileHref} key={user.id}>
+                      {content}
+                    </Link>
+                  );
+                })()
               ))}
             </div>
           </section>

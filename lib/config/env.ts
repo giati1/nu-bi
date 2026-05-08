@@ -3,11 +3,21 @@ import path from "path";
 const defaultPort = process.env.PORT ?? "8000";
 const databaseDriver = process.env.DATABASE_DRIVER ?? "sqlite";
 const storageDriver = process.env.STORAGE_DRIVER ?? "local";
+const cloudflareEnv = process.env.CLOUDFLARE_ENV ?? "production";
+const defaultAppUrl = cloudflareEnv === "preview"
+  ? "https://nu-bi-preview.cedricfjohnson.workers.dev"
+  : `http://localhost:${defaultPort}`;
+const normalizedAppUrl = normalizeConfiguredAppUrl(process.env.NEXT_PUBLIC_APP_URL, cloudflareEnv, defaultAppUrl);
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   appPort: Number.parseInt(defaultPort, 10),
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${defaultPort}`,
+  appUrl: normalizedAppUrl,
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  googleRedirectUri:
+    process.env.GOOGLE_REDIRECT_URI ??
+    `${normalizedAppUrl}/api/auth/google/callback`,
   databaseDriver,
   databasePath: resolveLocalPath(process.env.DATABASE_PATH, "./db/local.sqlite"),
   sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "nubi_session",
@@ -17,13 +27,15 @@ export const env = {
   publicStorageBasePath: process.env.NEXT_PUBLIC_STORAGE_BASE_PATH ?? "/uploads",
   publicMediaBasePath: process.env.NEXT_PUBLIC_MEDIA_BASE_PATH ?? "/api/media",
   r2PublicBaseUrl: process.env.R2_PUBLIC_BASE_URL ?? "",
-  cloudflareEnv: process.env.CLOUDFLARE_ENV ?? "production",
+  cloudflareEnv,
   openAiApiKey: process.env.OPENAI_API_KEY ?? "",
   openAiBaseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
   openAiTextModel: process.env.OPENAI_TEXT_MODEL ?? "gpt-4.1-mini",
   openAiImageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini",
+  openAiVideoModel: process.env.OPENAI_VIDEO_MODEL ?? "sora-2",
   aiAgentAdminUsernames: parseCsv(process.env.AI_AGENT_ADMIN_USERNAMES ?? "nubi"),
-  aiAgentSchedulerSecret: process.env.AI_AGENT_SCHEDULER_SECRET ?? ""
+  aiAgentSchedulerSecret: process.env.AI_AGENT_SCHEDULER_SECRET ?? "",
+  localAgentSecret: process.env.LOCAL_AGENT_SECRET ?? ""
 };
 
 export function isProduction() {
@@ -32,10 +44,18 @@ export function isProduction() {
 
 export function shouldUseSecureCookies() {
   try {
-    return new URL(env.appUrl).protocol === "https:";
+    return getSafeAppBaseUrl()?.protocol === "https:";
   } catch {
     return isProduction();
   }
+}
+
+export function getSafeAppBaseUrl() {
+  return tryParseAbsoluteHttpUrl(env.appUrl);
+}
+
+export function getSafeGoogleRedirectUrl() {
+  return tryParseAbsoluteHttpUrl(env.googleRedirectUri);
 }
 
 export function usesD1() {
@@ -63,4 +83,36 @@ function parseCsv(value: string) {
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function normalizeConfiguredAppUrl(value: string | undefined, runtimeEnv: string, fallback: string) {
+  const parsed = tryParseAbsoluteHttpUrl(value ?? "");
+  if (!parsed) {
+    return fallback;
+  }
+
+  if (runtimeEnv === "preview" && isLocalHostname(parsed.hostname)) {
+    return "https://nu-bi-preview.cedricfjohnson.workers.dev";
+  }
+
+  return parsed.toString().replace(/\/$/, "");
+}
+
+function isLocalHostname(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function tryParseAbsoluteHttpUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    if (!parsed.hostname || parsed.hostname.length < 2) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
