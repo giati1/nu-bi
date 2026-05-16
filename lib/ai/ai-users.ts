@@ -15,10 +15,19 @@ export type AiPersonalityType =
   | "creative"
   | "analytical";
 
+export type AiSocialArchetype =
+  | "connector"
+  | "loyalist"
+  | "instigator"
+  | "flirt"
+  | "curator"
+  | "mentor";
+
 export type AiUserStyle = {
   personalityType: AiPersonalityType;
   tone: string;
   engagementStyle: string;
+  socialArchetype: AiSocialArchetype;
 };
 
 export type AiUserVisualStyle = {
@@ -47,6 +56,7 @@ type AiUserSeed = {
   personalityType: AiPersonalityType;
   tone: string;
   engagementStyle: string;
+  socialArchetype: AiSocialArchetype;
   visualStyle: AiUserVisualStyle;
   staticAvatarUrl?: string;
 };
@@ -67,6 +77,7 @@ type AiUserProfile = {
   personalityType: AiPersonalityType;
   tone: string;
   engagementStyle: string;
+  socialArchetype: AiSocialArchetype;
   visualStyle: AiUserVisualStyle;
   staticAvatarUrl: string | null;
 };
@@ -82,6 +93,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "observant",
     tone: "sharp, current, and socially fluent",
     engagementStyle: "drops trend-aware observations, playful callouts, and easy questions that pull people into the comments",
+    socialArchetype: "connector",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "downtown culture girl with model energy",
@@ -103,6 +115,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "motivational",
     tone: "warm, steady, and reassuring",
     engagementStyle: "leaves supportive follow-ups and calm replies",
+    socialArchetype: "loyalist",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "soft reset girl with model features",
@@ -124,6 +137,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "motivational",
     tone: "athletic, pretty, confident, and socially inviting",
     engagementStyle: "mixes gym confidence, soft-flirty replies, and easy prompts that pull comments and DMs",
+    socialArchetype: "flirt",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "gym-lifestyle model with polished athletic beauty",
@@ -146,6 +160,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "motivational",
     tone: "disciplined, attractive, and high-standard",
     engagementStyle: "mixes gym confidence, routine talk, and direct prompts that pull comments fast",
+    socialArchetype: "mentor",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "gym model with strong feminine presence",
@@ -167,6 +182,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "analytical",
     tone: "clear, practical, and slightly skeptical",
     engagementStyle: "asks follow-up questions and tightens the point",
+    socialArchetype: "curator",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "builder girl with model polish",
@@ -188,6 +204,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "creative",
     tone: "stylish, playful, and visually tuned-in",
     engagementStyle: "replies with jokes, aesthetic callouts, and quick riffs",
+    socialArchetype: "instigator",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "gallery-night creative with model bone structure",
@@ -209,6 +226,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "creative",
     tone: "confident, magnetic, and socially smooth",
     engagementStyle: "opens with stylish observations, quick compliments, and low-pressure prompts that invite replies",
+    socialArchetype: "flirt",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "editorial model off duty",
@@ -230,6 +248,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "observant",
     tone: "glamorous, playful, and after-hours smooth",
     engagementStyle: "turns late-night looks and social moments into fast comment hooks",
+    socialArchetype: "instigator",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "nightlife muse with model appeal",
@@ -251,6 +270,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "observant",
     tone: "glamorous, warm, and casually persuasive",
     engagementStyle: "starts smooth conversations, notices details, and nudges people toward participating",
+    socialArchetype: "connector",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "luxury lifestyle muse",
@@ -272,6 +292,7 @@ const AI_USER_SEEDS: readonly AiUserSeed[] = [
     personalityType: "creative",
     tone: "pretty, polished, and socially addictive",
     engagementStyle: "uses beauty choices, fit checks, and low-stakes either-or prompts to pull replies",
+    socialArchetype: "curator",
     visualStyle: {
       subject: "an attractive adult woman, 21+, photoreal and clearly mature",
       archetype: "soft glam beauty model",
@@ -362,6 +383,7 @@ export async function ensureGeneratedAiUsers(count: number) {
         personalityType: profile.personalityType,
         tone: profile.tone,
         engagementStyle: profile.engagementStyle,
+        socialArchetype: profile.socialArchetype,
         avatarPromptVersion: 3,
         visualStyle: profile.visualStyle
       } satisfies AiUserInternalNotes)
@@ -392,11 +414,12 @@ function buildAiUserProfile(seed: AiUserSeed, index: number): AiUserProfile {
     personaPrompt: seed.personaPrompt,
     avatarSeed,
     contentModes: ["text", "image_post"],
-    postFrequencyMinutes: 45 + index * 10,
-    maxPostsPerDay: 6,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     personalityType: seed.personalityType,
     tone: seed.tone,
     engagementStyle: seed.engagementStyle,
+    socialArchetype: seed.socialArchetype,
     visualStyle: seed.visualStyle,
     staticAvatarUrl: seed.staticAvatarUrl ?? null
   };
@@ -416,14 +439,16 @@ export function resolveAiUserStyle(agent: Pick<AIAgentRecord, "slug" | "handle" 
     return {
       personalityType: profile.personalityType,
       tone: profile.tone,
-      engagementStyle: profile.engagementStyle
+      engagementStyle: profile.engagementStyle,
+      socialArchetype: profile.socialArchetype
     };
   }
 
   return {
     personalityType: "observant",
     tone: "casual and readable",
-    engagementStyle: "joins conversations without dragging them out"
+    engagementStyle: "joins conversations without dragging them out",
+    socialArchetype: "connector"
   };
 }
 
@@ -472,6 +497,7 @@ export function buildAiVoiceGuidance(style: AiUserStyle) {
     `Personality type: ${style.personalityType}.`,
     `Tone: ${style.tone}.`,
     `Engagement style: ${style.engagementStyle}.`,
+    `Social archetype: ${style.socialArchetype}.`,
     `Sample lines: ${examplesByType[style.personalityType].join(" | ")}.`
   ].join(" ");
 }
@@ -559,7 +585,8 @@ function parseStyleFromInternalNotes(value: string | null): AiUserStyle | null {
     return {
       personalityType: parsed.personalityType,
       tone: parsed.tone,
-      engagementStyle: parsed.engagementStyle
+      engagementStyle: parsed.engagementStyle,
+      socialArchetype: parsed.socialArchetype ?? "connector"
     };
   }
 

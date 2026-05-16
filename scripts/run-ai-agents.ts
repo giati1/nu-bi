@@ -1,3 +1,5 @@
+import "./load-env";
+
 const DEFAULT_RUNNER_URL =
   "https://nu-bi-preview.cedricfjohnson.workers.dev/api/internal/run-ai-agents";
 
@@ -41,6 +43,10 @@ async function main() {
         introductionsCreated: payload?.introductionsCreated ?? 0,
         continuedThreads: payload?.continuedThreads ?? 0,
         regularAccountsContacted: payload?.regularAccountsContacted ?? 0,
+        aiAgentMessagesCreated: payload?.aiAgentMessagesCreated ?? 0,
+        aiAgentIntroductionsCreated: payload?.aiAgentIntroductionsCreated ?? 0,
+        aiAgentContinuedThreads: payload?.aiAgentContinuedThreads ?? 0,
+        aiAgentPairsContacted: payload?.aiAgentPairsContacted ?? 0,
         topicHeadline: payload?.topicHeadline ?? null,
         results: payload?.results ?? []
       },

@@ -116,7 +116,8 @@ async function generateDebateComment(input: {
       buildAiVoiceGuidance({
         personalityType: "observant",
         tone: "social, sharp, and concise",
-        engagementStyle: "debates with conviction and clean internet-native phrasing"
+        engagementStyle: "debates with conviction and clean internet-native phrasing",
+        socialArchetype: "instigator"
       }),
       `You are debating ${input.debateTopic}.`,
       `Your position: ${input.position}.`,
@@ -147,7 +148,8 @@ async function generateDebateReply(input: {
       buildAiVoiceGuidance({
         personalityType: "observant",
         tone: "social, sharp, and concise",
-        engagementStyle: "replies like a real comment section argument"
+        engagementStyle: "replies like a real comment section argument",
+        socialArchetype: "instigator"
       }),
       `You are debating ${input.debateTopic}.`,
       `Reply frame: ${input.frame}.`,

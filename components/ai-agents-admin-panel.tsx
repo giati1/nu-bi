@@ -2,18 +2,28 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import type { AIAgentRecord, AIReviewPostRecord } from "@/types/domain";
+import type { AIAgentRecord, AIAutomationSettings, AIReviewPostRecord } from "@/types/domain";
 
 export function AIAgentsAdminPanel({
   agents,
-  reviewPosts
+  reviewPosts,
+  automationSettings
 }: {
   agents: AIAgentRecord[];
   reviewPosts: AIReviewPostRecord[];
+  automationSettings: AIAutomationSettings;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [adminStatus, setAdminStatus] = useState("");
+  const [cleanupStatus, setCleanupStatus] = useState("");
+  const [automationDraft, setAutomationDraft] = useState({
+    autoPostEnabled: automationSettings.autoPostEnabled,
+    autoPostFrequency: automationSettings.autoPostFrequency,
+    autoPostTime: automationSettings.autoPostTime,
+    autoReplyEnabled: automationSettings.autoReplyEnabled,
+    requireApprovalBeforePosting: automationSettings.requireApprovalBeforePosting
+  });
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
       agents.map((agent) => [
@@ -42,9 +52,190 @@ export function AIAgentsAdminPanel({
   return (
     <div className="space-y-5">
       <section className="glass-panel rounded-[28px] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Automation controls</p>
+            <p className="mt-2 max-w-3xl text-sm text-white/60">
+              Auto posting is capped to one scheduled AI post per day. Comment and DM replies stay event-driven.
+            </p>
+            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/45">
+              GitHub Actions UTC cron {automationSettings.autoPostCron} / UTC time {automationSettings.autoPostTime}
+            </p>
+          </div>
+          <button
+            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-60"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                setAdminStatus("");
+                const response = await fetch("/api/internal/ai-automation", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    autoPostEnabled: automationDraft.autoPostEnabled,
+                    autoPostCron: "0 14 * * *",
+                    autoPostFrequency: automationDraft.autoPostFrequency,
+                    autoPostTime: automationDraft.autoPostTime,
+                    autoReplyEnabled: automationDraft.autoReplyEnabled,
+                    requireApprovalBeforePosting: automationDraft.requireApprovalBeforePosting
+                  })
+                });
+                const payload = (await response.json()) as { error?: string };
+                setAdminStatus(response.ok ? "Saved automation settings." : payload.error ?? "Failed to save automation settings.");
+                router.refresh();
+              })
+            }
+            type="button"
+          >
+            Save automation
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <label className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/45">Auto posting</p>
+            <select
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+              onChange={(event) =>
+                setAutomationDraft((current) => ({
+                  ...current,
+                  autoPostEnabled: event.target.value === "true"
+                }))
+              }
+              value={String(automationDraft.autoPostEnabled)}
+            >
+              <option value="true">On</option>
+              <option value="false">Off</option>
+            </select>
+          </label>
+          <label className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/45">Frequency</p>
+            <input
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+              onChange={(event) =>
+                setAutomationDraft((current) => ({
+                  ...current,
+                  autoPostFrequency: event.target.value
+                }))
+              }
+              value={automationDraft.autoPostFrequency}
+            />
+          </label>
+          <label className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/45">Posting time</p>
+            <input
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+              onChange={(event) =>
+                setAutomationDraft((current) => ({
+                  ...current,
+                  autoPostTime: event.target.value
+                }))
+              }
+              value={automationDraft.autoPostTime}
+            />
+          </label>
+          <label className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/45">Auto replies</p>
+            <select
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+              onChange={(event) =>
+                setAutomationDraft((current) => ({
+                  ...current,
+                  autoReplyEnabled: event.target.value === "true"
+                }))
+              }
+              value={String(automationDraft.autoReplyEnabled)}
+            >
+              <option value="true">On</option>
+              <option value="false">Off</option>
+            </select>
+          </label>
+          <label className="block rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/45">Require approval</p>
+            <select
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+              onChange={(event) =>
+                setAutomationDraft((current) => ({
+                  ...current,
+                  requireApprovalBeforePosting: event.target.value === "true"
+                }))
+              }
+              value={String(automationDraft.requireApprovalBeforePosting)}
+            >
+              <option value="false">Off</option>
+              <option value="true">On</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/75 hover:bg-white/5 disabled:opacity-60"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                setCleanupStatus("");
+                const response = await fetch("/api/internal/ai-automation/cleanup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dryRun: true, daysBack: 7 })
+                });
+                const payload = (await response.json()) as {
+                  error?: string;
+                  matchedCount?: number;
+                  backupPath?: string;
+                };
+                setCleanupStatus(
+                  response.ok
+                    ? `Dry run matched ${payload.matchedCount ?? 0} posts. Backup: ${payload.backupPath ?? "n/a"}`
+                    : payload.error ?? "Dry run failed."
+                );
+              })
+            }
+            type="button"
+          >
+            Cleanup low-engagement AI posts
+          </button>
+          <button
+            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                setCleanupStatus("");
+                const response = await fetch("/api/internal/ai-automation/cleanup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dryRun: false, daysBack: 7 })
+                });
+                const payload = (await response.json()) as {
+                  error?: string;
+                  deletedCount?: number;
+                  backupPath?: string;
+                };
+                setCleanupStatus(
+                  response.ok
+                    ? `Deleted ${payload.deletedCount ?? 0} posts. Backup: ${payload.backupPath ?? "n/a"}`
+                    : payload.error ?? "Cleanup failed."
+                );
+                router.refresh();
+              })
+            }
+            type="button"
+          >
+            Run cleanup now
+          </button>
+        </div>
+        {cleanupStatus ? <p className="mt-3 text-sm text-white/60">{cleanupStatus}</p> : null}
+      </section>
+
+      <section className="glass-panel rounded-[28px] p-5">
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Review queue</p>
-          <p className="text-xs text-white/45">New AI posts land as drafts until you approve them.</p>
+          <p className="text-xs text-white/45">
+            {automationDraft.requireApprovalBeforePosting
+              ? "New AI posts land as drafts until you approve them."
+              : "Approval is off, so only manually drafted AI posts show up here."}
+          </p>
         </div>
         <div className="mt-4 space-y-3">
           {reviewPosts.length > 0 ? (
@@ -240,7 +431,7 @@ export function AIAgentsAdminPanel({
                     <p className="mb-2 text-xs uppercase tracking-[0.14em] text-white/45">Frequency minutes</p>
                     <input
                       className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
-                      min={30}
+                      min={1440}
                       onChange={(event) =>
                         setDrafts((current) => ({
                           ...current,
@@ -258,6 +449,7 @@ export function AIAgentsAdminPanel({
                     <p className="mb-2 text-xs uppercase tracking-[0.14em] text-white/45">Max posts/day</p>
                     <input
                       className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-accent"
+                      max={1}
                       min={1}
                       onChange={(event) =>
                         setDrafts((current) => ({

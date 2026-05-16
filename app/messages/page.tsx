@@ -78,7 +78,9 @@ async function getInboxSummary(
             ? "Voice note"
             : conversation.lastMessage?.mediaMimeType?.startsWith("video/")
               ? "Video attachment"
-              : "No messages yet");
+              : conversation.lastMessage?.mediaMimeType?.startsWith("image/")
+                ? "Photo attachment"
+                : "No messages yet");
 
         return `${conversation.counterpart.displayName}: ${preview}`;
       })

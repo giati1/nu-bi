@@ -11,6 +11,7 @@ import {
   finishAIAgentRunLog,
   getAIAgentById,
   getAIAgentBySlug,
+  getAIAutomationSettings,
   getAIAgentPublishingSnapshot,
   listAIAgents,
   touchAIAgentRun,
@@ -42,6 +43,8 @@ export type AiSocialLoopResult = {
 export async function runAllEligibleAgentsOnce(options?: {
   forceEligibleForTesting?: boolean;
   topicOverride?: string | null;
+  highAutonomy?: boolean;
+  maxPostsToCreate?: number;
 }) {
   const summary = await runAiSocialLoop(options);
   return summary.results;
@@ -50,8 +53,12 @@ export async function runAllEligibleAgentsOnce(options?: {
 export async function runAiSocialLoop(options?: {
   forceEligibleForTesting?: boolean;
   topicOverride?: string | null;
+  highAutonomy?: boolean;
+  maxPostsToCreate?: number;
 }) {
   const forceEligibleForTesting = Boolean(options?.forceEligibleForTesting);
+  const highAutonomy = options?.highAutonomy !== false;
+  const automation = await getAIAutomationSettings();
   await ensureGeneratedAiUsers(9);
   const agents = await listAIAgents();
   const results: AgentRunResult[] = [];
@@ -70,47 +77,53 @@ export async function runAiSocialLoop(options?: {
   }
 
   const shuffledAgents = shuffle(eligibleAgents);
-  const targetCount = Math.min(
-    shuffledAgents.length,
-    forceEligibleForTesting
-      ? 3
-      : Math.max(1, Math.min(3, shuffledAgents.length === 0 ? 0 : Math.floor(Math.random() * 3) + 1))
-  );
+  const defaultTargetCount = forceEligibleForTesting
+    ? (highAutonomy ? 5 : 3)
+    : highAutonomy
+      ? Math.max(2, Math.min(6, shuffledAgents.length === 0 ? 0 : Math.floor(Math.random() * 5) + 2))
+      : Math.max(1, Math.min(3, shuffledAgents.length === 0 ? 0 : Math.floor(Math.random() * 3) + 1));
+  const autoPostingEnabledForRun = forceEligibleForTesting ? true : automation.autoPostEnabled;
+  const configuredMaxPosts = options?.maxPostsToCreate ?? defaultTargetCount;
+  const targetCount = autoPostingEnabledForRun
+    ? Math.min(shuffledAgents.length, Math.max(0, configuredMaxPosts))
+    : 0;
   let imagePostsCreated = 0;
-  let forcedImageSlotsRemaining = forceEligibleForTesting ? 2 : 0;
+  let forcedImageSlotsRemaining = forceEligibleForTesting ? (highAutonomy ? 3 : 2) : 0;
 
-  for (const agent of shuffledAgents) {
-    if (results.filter((result) => result.status === "drafted").length >= targetCount) {
-      break;
-    }
-
-    const result = await runAgentOnce(agent.id, {
-      respectSchedule: true,
-      runType: "eligible-pass",
-      forceEligibleForTesting,
-      topicOverride: options?.topicOverride,
-      forcedContentMode:
-        forceEligibleForTesting &&
-        forcedImageSlotsRemaining > 0 &&
-        agent.contentModes.includes("image_post")
-          ? "image_post"
-          : undefined
-    });
-
-    results.push(result);
-    if (result.status === "drafted" && result.reason.includes("image_post")) {
-      imagePostsCreated += 1;
-      if (forcedImageSlotsRemaining > 0) {
-        forcedImageSlotsRemaining -= 1;
+  if (targetCount > 0) {
+    for (const agent of shuffledAgents) {
+      if (results.filter((result) => result.status === "drafted").length >= targetCount) {
+        break;
       }
-    }
 
-    if (!forceEligibleForTesting && results.length >= targetCount) {
-      break;
+      const result = await runAgentOnce(agent.id, {
+        respectSchedule: true,
+        runType: "eligible-pass",
+        forceEligibleForTesting,
+        topicOverride: options?.topicOverride,
+        forcedContentMode:
+          forceEligibleForTesting &&
+          forcedImageSlotsRemaining > 0 &&
+          agent.contentModes.includes("image_post")
+            ? "image_post"
+            : undefined
+      });
+
+      results.push(result);
+      if (result.status === "drafted" && result.reason.includes("image_post")) {
+        imagePostsCreated += 1;
+        if (forcedImageSlotsRemaining > 0) {
+          forcedImageSlotsRemaining -= 1;
+        }
+      }
+
+      if (!forceEligibleForTesting && results.length >= targetCount) {
+        break;
+      }
     }
   }
 
-  if (forceEligibleForTesting && imagePostsCreated < targetCount) {
+  if (forceEligibleForTesting && targetCount > 0 && imagePostsCreated < targetCount) {
     for (const agent of shuffledAgents) {
       if (!agent.contentModes.includes("image_post")) {
         continue;
@@ -152,9 +165,9 @@ export async function runAiSocialLoop(options?: {
       topicOverride: options?.topicOverride
     });
 
-    return {
-      results: skippedResults,
-      imagePostsCreated,
+      return {
+        results: skippedResults,
+        imagePostsCreated,
       conversationSummary
     } satisfies AiSocialLoopResult;
   }
@@ -163,11 +176,13 @@ export async function runAiSocialLoop(options?: {
     allAgents: agents.filter((item) => item.enabled),
     postedAgentIds: results
       .filter((result) => result.status === "drafted")
-      .map((result) => result.agentId)
+      .map((result) => result.agentId),
+    highAutonomy
   });
   const conversationSummary = await runAiConversationPass({
     allAgents: agents.filter((item) => item.enabled),
-    topicOverride: options?.topicOverride
+    topicOverride: options?.topicOverride,
+    highAutonomy
   });
 
   return {

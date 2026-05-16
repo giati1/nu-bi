@@ -147,6 +147,9 @@ function formatConversationPreview(conversation: ConversationSummary) {
   if (message.mediaMimeType?.startsWith("video/")) {
     return `${prefix}sent a video`;
   }
+  if (message.mediaMimeType?.startsWith("image/")) {
+    return `${prefix}sent a photo`;
+  }
   if (message.mediaMimeType) {
     return `${prefix}sent an attachment`;
   }

@@ -1,3 +1,5 @@
+import "./load-env";
+
 const DEFAULT_OLLAMA_URL = "http://localhost:11434/api/generate";
 const DEFAULT_MODEL = "gemma3:4b";
 const DEFAULT_RUNNER_URL =

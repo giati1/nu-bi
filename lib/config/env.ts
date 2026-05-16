@@ -8,6 +8,9 @@ const defaultAppUrl = cloudflareEnv === "preview"
   ? "https://nu-bi-preview.cedricfjohnson.workers.dev"
   : `http://localhost:${defaultPort}`;
 const normalizedAppUrl = normalizeConfiguredAppUrl(process.env.NEXT_PUBLIC_APP_URL, cloudflareEnv, defaultAppUrl);
+const autoPostEnabled = parseBooleanFlag(process.env.AUTO_POST_ENABLED, true);
+const autoReplyEnabled = parseBooleanFlag(process.env.AUTO_REPLY_ENABLED, true);
+const requireApprovalBeforePosting = parseBooleanFlag(process.env.REQUIRE_APPROVAL_BEFORE_POSTING, false);
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
@@ -35,7 +38,13 @@ export const env = {
   openAiVideoModel: process.env.OPENAI_VIDEO_MODEL ?? "sora-2",
   aiAgentAdminUsernames: parseCsv(process.env.AI_AGENT_ADMIN_USERNAMES ?? "nubi"),
   aiAgentSchedulerSecret: process.env.AI_AGENT_SCHEDULER_SECRET ?? "",
-  localAgentSecret: process.env.LOCAL_AGENT_SECRET ?? ""
+  localAgentSecret: process.env.LOCAL_AGENT_SECRET ?? "",
+  autoPostEnabled,
+  autoPostCron: process.env.AUTO_POST_CRON ?? "0 14 * * *",
+  autoPostFrequency: process.env.AUTO_POST_FREQUENCY ?? "daily",
+  autoPostTime: process.env.AUTO_POST_TIME ?? "14:00",
+  autoReplyEnabled,
+  requireApprovalBeforePosting
 };
 
 export function isProduction() {
@@ -83,6 +92,21 @@ function parseCsv(value: string) {
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function parseBooleanFlag(value: string | undefined, fallback: boolean) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
 }
 
 function normalizeConfiguredAppUrl(value: string | undefined, runtimeEnv: string, fallback: string) {

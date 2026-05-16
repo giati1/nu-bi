@@ -3,8 +3,9 @@ import { generateAiVoiceMedia } from "@/lib/ai/ai-voice";
 import { buildAiVoiceGuidance, resolveAiUserStyle } from "@/lib/ai/ai-users";
 import { generateReply } from "@/lib/ai/ai-comments";
 import { generateAgentThreadReply } from "@/lib/ai-agents/chat";
+import { maybeCreateAiDmImageReply } from "@/lib/ai-agents/dm-media";
 import { getCloudflareContextAsync } from "@/lib/cloudflare/context";
-import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
+import { getAIAgentByLinkedUserId, getAIAutomationSettings } from "@/lib/db/ai-repository";
 import { all, get } from "@/lib/db/client";
 import {
   addComment,
@@ -46,6 +47,11 @@ export function queueAiDmAutoReply(input: {
     channelKey: `conversation:${input.conversationId}`,
     triggerId: input.triggerMessageId
   }, async () => {
+    const automation = await getAIAutomationSettings();
+    if (!automation.autoReplyEnabled) {
+      return;
+    }
+
     const aiRecipientId = await resolveConversationCounterpart(input.conversationId, input.humanSenderId);
     if (!aiRecipientId) {
       return;
@@ -110,14 +116,28 @@ export function queueAiDmAutoReply(input: {
     }
 
     await enforceChannelCooldown(`conversation:${input.conversationId}`);
-    const voiceReply = await maybeCreateVoiceDmReply({
-      conversationId: input.conversationId,
+    const imageReply = await maybeCreateAiDmImageReply({
       agent,
-      body: replyBody
+      topicSeed: replyBody,
+      baseChance: 0.18
     });
+    const voiceReply = imageReply
+      ? null
+      : await maybeCreateVoiceDmReply({
+          conversationId: input.conversationId,
+          agent,
+          body: replyBody
+        });
 
     await sendMessage(
-      voiceReply
+      imageReply
+        ? {
+            senderId: agent.linkedUserId,
+            conversationId: input.conversationId,
+            body: replyBody,
+            media: [imageReply]
+          }
+        : voiceReply
         ? {
             senderId: agent.linkedUserId,
             conversationId: input.conversationId,
@@ -137,7 +157,7 @@ export function queueAiDmAutoReply(input: {
       channelKey: `conversation:${input.conversationId}`,
       actorId: agent.linkedUserId,
       triggerId: input.triggerMessageId,
-      mode: voiceReply ? "voice" : "text"
+      mode: imageReply ? "image" : voiceReply ? "voice" : "text"
     });
   });
 }
@@ -156,6 +176,11 @@ export function queueAiCommentAutoReply(input: {
     channelKey: `post:${input.postId}`,
     triggerId: input.triggerCommentId
   }, async () => {
+    const automation = await getAIAutomationSettings();
+    if (!automation.autoReplyEnabled) {
+      return;
+    }
+
     const postAuthor = await get<{ user_id: string }>(
       `SELECT user_id FROM posts WHERE id = ? AND deleted_at IS NULL`,
       [input.postId]
@@ -289,7 +314,7 @@ function logReplySent(input: {
   channelKey: string;
   actorId: string;
   triggerId: string;
-  mode: "text" | "voice";
+  mode: "text" | "voice" | "image";
 }) {
   console.log(
     `[ai-auto-reply:${input.kind}] sent jobId=${input.jobId} channel=${input.channelKey} actor=${input.actorId} trigger=${input.triggerId} mode=${input.mode}`

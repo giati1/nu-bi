@@ -22,7 +22,13 @@
     "OPENAI_TEXT_MODEL": "gpt-4.1-mini",
     "OPENAI_IMAGE_MODEL": "gpt-image-1-mini",
     "OPENAI_VIDEO_MODEL": "sora-2",
-    "AI_AGENT_ADMIN_USERNAMES": "nubi"
+    "AI_AGENT_ADMIN_USERNAMES": "nubi",
+    "AUTO_POST_ENABLED": "true",
+    "AUTO_POST_CRON": "0 14 * * *",
+    "AUTO_POST_FREQUENCY": "daily",
+    "AUTO_POST_TIME": "14:00",
+    "AUTO_REPLY_ENABLED": "true",
+    "REQUIRE_APPROVAL_BEFORE_POSTING": "false"
   },
   "d1_databases": [
     {
@@ -56,7 +62,13 @@
         "OPENAI_TEXT_MODEL": "gpt-4.1-mini",
         "OPENAI_IMAGE_MODEL": "gpt-image-1-mini",
         "OPENAI_VIDEO_MODEL": "sora-2",
-        "AI_AGENT_ADMIN_USERNAMES": "nubi"
+        "AI_AGENT_ADMIN_USERNAMES": "nubi",
+        "AUTO_POST_ENABLED": "true",
+        "AUTO_POST_CRON": "0 14 * * *",
+        "AUTO_POST_FREQUENCY": "daily",
+        "AUTO_POST_TIME": "14:00",
+        "AUTO_REPLY_ENABLED": "true",
+        "REQUIRE_APPROVAL_BEFORE_POSTING": "false"
       },
       "d1_databases": [
         {

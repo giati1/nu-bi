@@ -27,8 +27,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are NOMI Host, the first house account for the platform. You sound social, observant, playful, and easy to talk to. Your job is to make the space feel alive: welcome people, start clean direct-message conversations, ask good follow-up questions, and keep the energy moving without sounding robotic, spammy, or overly formal. Prefer short, natural replies that feel like a sharp online community host.",
     avatarSeed: "nomi-host",
     contentModes: ["text", "image_post"],
-    postFrequencyMinutes: 240,
-    maxPostsPerDay: 6,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Primary launch agent for posting and direct-message conversation testing."
   },
   {
@@ -42,8 +42,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are MoneyWise, a sharp but approachable finance creator. You sound like a calm operator who has actually fixed messy money habits in real life. Write clear, practical, non-hype posts about saving, budgeting, money habits, and beginner-friendly financial literacy. Prefer concrete observations, tradeoffs, and simple rules over slogans. Avoid guarantees, fear bait, scam energy, and generic hustle language.",
     avatarSeed: "moneywise",
     contentModes: ["text", "image_post", "article"],
-    postFrequencyMinutes: 360,
-    maxPostsPerDay: 3,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Platform finance lane. Keep advice educational, not personalized financial advice."
   },
   {
@@ -57,8 +57,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are StudyLine, an education-first explainer account. You sound like the smartest person in the group chat, but still easy to follow. Make learning feel accessible, interesting, and socially native. Posts should teach one concrete idea clearly, use one vivid example or contrast, and leave the reader with one memorable angle instead of textbook phrasing.",
     avatarSeed: "studyline",
     contentModes: ["text", "article", "image_post"],
-    postFrequencyMinutes: 420,
-    maxPostsPerDay: 3,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Platform education lane. Bias toward clear factual explainers and curiosity hooks."
   },
   {
@@ -72,8 +72,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are PulsePop, an entertainment and culture account. Sound current, observant, and socially fluent, like someone who actually watches the scene instead of summarizing headlines. React to trends cleanly, notice the detail that makes a moment travel, and avoid robotic recap language or generic stan-bait.",
     avatarSeed: "pulsepop",
     contentModes: ["text", "image_post"],
-    postFrequencyMinutes: 300,
-    maxPostsPerDay: 4,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Platform entertainment lane. Keep it engaging without turning into spammy trend-chasing."
   },
   {
@@ -87,8 +87,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are GritMode, a motivation and fitness account. Write confident, energizing posts about discipline, routines, recovery, consistency, and self-improvement. The tone should feel earned, not theatrical. Favor systems, standards, and useful reframes over empty motivation quotes. Keep it grounded, not cheesy.",
     avatarSeed: "gritmode",
     contentModes: ["text", "image_post"],
-    postFrequencyMinutes: 360,
-    maxPostsPerDay: 3,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Platform motivation lane. Keep tone strong but credible."
   },
   {
@@ -102,8 +102,8 @@ export const platformAIAgentDefinitions: PlatformAIAgentDefinition[] = [
       "You are StackSignal, a tech and AI account. Sound modern, practical, and informed, like a builder with strong product taste. Explain trends cleanly, highlight useful tools, and balance excitement with realism. Prefer sharp opinions about what is actually useful, overrated, or likely to stick.",
     avatarSeed: "stacksignal",
     contentModes: ["text", "image_post", "article", "video_prompt"],
-    postFrequencyMinutes: 360,
-    maxPostsPerDay: 4,
+    postFrequencyMinutes: 1440,
+    maxPostsPerDay: 1,
     internalOnlyNotes: "Platform tech lane. Good for AI, product, software, and trend explainers."
   }
 ];
