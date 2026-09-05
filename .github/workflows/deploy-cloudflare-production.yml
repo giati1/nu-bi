@@ -1,6 +1,14 @@
 name: Deploy Cloudflare Production
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/giati/**"
+      - "public/portfolio/**"
+      - "app/page.tsx"
+      - ".github/workflows/deploy-cloudflare-production.yml"
   workflow_dispatch:
     inputs:
       git_ref:
@@ -28,7 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ github.event.inputs.git_ref || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
