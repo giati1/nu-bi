@@ -8,6 +8,7 @@ on:
       - "app/giati/**"
       - "public/portfolio/**"
       - "app/page.tsx"
+      - "wrangler.jsonc"
       - ".github/workflows/deploy-cloudflare-production.yml"
   workflow_dispatch:
     inputs:
