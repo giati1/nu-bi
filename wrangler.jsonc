@@ -5,6 +5,16 @@
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "nu-bi.com/*",
+      "zone_name": "nu-bi.com"
+    },
+    {
+      "pattern": "www.nu-bi.com/*",
+      "zone_name": "nu-bi.com"
+    }
+  ],
   "assets": {
     "directory": ".worker-next/assets",
     "binding": "ASSETS"
