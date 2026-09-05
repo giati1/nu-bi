@@ -7,9 +7,12 @@ export default function LandingPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.07),_transparent_26%),radial-gradient(circle_at_bottom_right,_rgba(220,38,38,0.14),_transparent_22%)]" />
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center justify-center">
         <section className="relative w-full rounded-[40px] border border-accent/20 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.16),transparent_22%),rgba(0,0,0,0.82)] p-8 shadow-panel backdrop-blur-xl sm:p-10">
-          <header className="flex items-center justify-between gap-4">
+          <header className="flex flex-wrap items-center justify-between gap-4">
             <BrandMark />
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              <Link className="rounded-2xl border border-white/15 px-4 py-3 text-sm text-white/85 transition hover:border-accent/35 hover:text-white" href="/giati">
+                Builder portfolio
+              </Link>
               <Link className="rounded-2xl border border-white/15 px-4 py-3 text-sm text-white/85" href="/login">
                 Log in
               </Link>
@@ -27,6 +30,9 @@ export default function LandingPage() {
             <p className="mt-5 max-w-xl text-base text-white/62 md:text-lg">
               Join, share, connect.
             </p>
+            <Link className="mt-7 text-xs font-semibold uppercase tracking-[0.22em] text-accent-soft transition hover:text-white" href="/giati">
+              Explore the builder portfolio →
+            </Link>
           </div>
         </section>
       </div>
