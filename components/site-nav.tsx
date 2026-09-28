@@ -11,6 +11,7 @@ import { QuickUploadSheet } from "@/components/quick-upload-sheet";
 import { cn } from "@/lib/utils";
 
 const desktopLinks = [
+  { href: "/world", label: "AI World", icon: Sparkles },
   { href: "/home", label: "Home", icon: House },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/creator", label: "Create post", icon: Plus },
@@ -27,6 +28,7 @@ const desktopSecondaryLinks = [
 ];
 
 const mobileMoreLinks = [
+  { href: "/world", label: "AI World", icon: Sparkles },
   { href: "/notifications", label: "Notifications", icon: Bell, badge: true },
   { href: "/creator", label: "Create post", icon: Plus },
   { href: "/explore", label: "Explore", icon: Compass },
