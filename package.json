@@ -9,7 +9,7 @@
     "postinstall": "node scripts/patch-opennext-cloudflare.mjs",
     "dev": "node scripts/run-next.mjs dev",
     "world:start": "node scripts/ai-world/server.mjs",
-    "world:test": "node --test scripts/ai-world/engine.test.mjs",
+    "world:test": "node --test scripts/ai-world/engine.test.mjs scripts/ai-world/coding.test.mjs",
     "build": "next build",
     "start": "node scripts/run-next.mjs start",
     "lint": "next lint",

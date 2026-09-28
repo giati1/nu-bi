@@ -13,6 +13,13 @@ async function refresh() {
 }
 function render() {
   const project = state.projects.find(p => p.id === selected), running = Boolean(state.active);
+  $('coding-controls').hidden = !project?.coding;
+  $('code-run').disabled = running || !project?.coding;
+  $('code-public').disabled = running;
+  $('code-public').textContent = project?.public ? 'Make discussion private' : 'Publish discussion';
+  $('code-expert').disabled = !state.expertConfigured || running;
+  $('code-status').textContent = project?.coding ? `${project.runtime} · revision ${project.revision || 0} · ${project.testsPassed ? 'tests passed' : 'tests not passing yet'} · ${project.readyForReview ? 'ready for your review' : 'work in progress'}${!state.expertConfigured ? ' · OpenAI key missing' : ''}` : '';
+  $('code-events').replaceChildren(...(state.codeEvents || []).filter(e=>e.projectId===selected).slice(-15).reverse().map(e=>{const details=node('details');details.append(node('summary',`${e.author} · ${e.action} · ${new Date(e.createdAt).toLocaleTimeString()}`),node('pre',JSON.stringify(e.result,null,2)));return details;}));
   $('status').textContent = running ? `${state.active.currentAgent || 'Residents'} working` : 'Local world · ready';
   $('publication').textContent = state.publication?.error || (state.publication?.lastPublishedAt ? `Public world synced ${new Date(state.publication.lastPublishedAt).toLocaleTimeString()} · ${state.publication.url}` : 'Public sync is not connected yet. Configure the publisher URL and secret.');
   $('project-title').textContent = project?.title || 'Start with a shared goal'; $('project-goal').textContent = project?.goal || 'Create a project to bring the residents together.';
@@ -25,7 +32,7 @@ function render() {
   }));
   $('run').disabled = running || !project; $('stop').disabled = !running; $('complete').disabled = running || !project;
   $('complete').textContent = project?.status === 'completed' ? 'Reopen project' : 'Mark completed';
-  for (const id of ['project-form','agent-form','message-form']) for (const el of $(id).elements) el.disabled = running || (id === 'message-form' && !project);
+  for (const id of ['project-form','agent-form','message-form','import-form']) for (const el of $(id).elements) el.disabled = running || (id === 'message-form' && !project);
   const run = [...state.runs].reverse().find(r => r.projectId === selected);
   $('run-status').textContent = run ? `${run.status} · ${run.turns}/${run.maxTurns} contributions${run.currentAgent ? ' · ' + run.currentAgent + ' is thinking' : ''}${run.error ? ' · ' + run.error : ''}` : 'Local agents take turns. Each turn can take several minutes on this PC.';
   const messages = state.messages.filter(m => m.projectId === selected), list = $('messages'), atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
@@ -35,7 +42,12 @@ function render() {
   $('artifacts').replaceChildren(...state.artifacts.filter(a => a.projectId === selected).map(a => { const card = node('div', undefined, 'draft'); card.append(node('h3', a.title), node('small', `Draft by ${a.author} · ${new Date(a.createdAt).toLocaleString()}`), node('pre', a.content)); const download = node('button', 'Download draft', 'secondary'); download.onclick = () => { const url = URL.createObjectURL(new Blob([a.content], { type: 'text/plain' })); const link = node('a'); link.href = url; link.download = 'nomi-draft-' + a.id + '.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }; card.append(download); return card; }));
   $('provider-status').textContent = state.providers.filter(p => p.keyName).map(p => `${p.id}: ${p.configured ? 'key configured' : 'set ' + p.keyName + ' in .env.local and restart'}`).join(' · ');
 }
-$('project-form').onsubmit = e => { e.preventDefault(); const f = e.currentTarget; action(async () => { const p = await api('projects', Object.fromEntries(new FormData(f))); selected = p.id; f.reset(); notice('Project created. Start a discussion when ready.'); }); };
+$('project-form').onsubmit = e => { e.preventDefault(); const f = e.currentTarget; action(async () => { const data=Object.fromEntries(new FormData(f));const p = await api('projects', {...data,coding:data.mode!=='discussion',runtime:data.mode}); selected = p.id; f.reset(); notice('Project created. Choose discussion or coding controls to begin.'); }); };
+$('invent').onclick=()=>action(async()=>{const p=await api('projects',{title:'Agent-designed software project',goal:'Propose one small useful JavaScript utility that uses only the standard library. Then implement it, add meaningful tests and review the result. Keep the first version small enough to complete in one session.',coding:true,runtime:'node',agentDesigned:true});selected=p.id;notice('Private project created. Start coding to let the planner choose the idea and the team build it.');});
+$('code-run').onclick=()=>action(async()=>{await api('code/run',{projectId:selected,maxSteps:Number($('code-steps').value),allowWeb:$('code-web').checked,allowExpert:$('code-expert').checked});notice('Coding started. Files and real tool results appear below.');});
+$('code-public').onclick=()=>action(()=>api('code/visibility',{projectId:selected,public:!state.projects.find(p=>p.id===selected).public}));
+$('import-form').onsubmit=e=>{e.preventDefault();action(async()=>{const r=await api('code/import',{projectId:selected,source:e.target.elements.source.value});notice(`Imported ${r.imported} source files. ${r.skipped}`);});};
+$('code-files').onclick=()=>action(async()=>{const projectId=selected;const r=await api('code/files?projectId='+encodeURIComponent(projectId));$('workspace-path').textContent=r.workspace;$('file-preview').textContent='';$('file-list').replaceChildren(...r.files.map(path=>{const b=node('button',path,'secondary');b.onclick=()=>action(async()=>{const file=await api('code/files?projectId='+encodeURIComponent(projectId)+'&path='+encodeURIComponent(path));$('file-preview').textContent=file.content;});return b;}));});
 $('agent-form').onsubmit = e => { e.preventDefault(); const f = e.currentTarget; action(async () => { await api('agents', { ...Object.fromEntries(new FormData(f)), enabled: f.elements.enabled.checked }); f.reset(); f.elements.id.value = ''; notice('Resident saved.'); }); };
 $('reset-agent').onclick = () => { $('agent-form').reset(); $('agent-form').elements.id.value = ''; };
 $('message-form').onsubmit = e => { e.preventDefault(); const f = e.currentTarget; action(async () => { await api('message', { projectId: selected, body: f.elements.body.value }); f.reset(); notice('Direction added. Start another discussion round to get responses.'); }); };

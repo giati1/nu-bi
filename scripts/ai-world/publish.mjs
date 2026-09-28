@@ -1,11 +1,11 @@
 export function publicSnapshot(state) {
-  const projects = state.projects.slice(-20);
+  const projects = state.projects.filter(p=>p.public!==false).slice(-20);
   const ids = new Set(projects.map(p => p.id));
-  const run = state.runs.at(-1);
+  const run = state.runs.filter(r=>ids.has(r.projectId)).at(-1);
   return {
     publishedAt: new Date().toISOString(),
     agents: state.agents.map(({ id, name, role, provider, model, enabled }) => ({ id, name, role, provider, model, enabled })),
-    projects: projects.map(({ id, title, goal, status, createdAt }) => ({ id, title, goal, status, createdAt })),
+    projects: projects.map(({ id, title, goal, status, createdAt, coding, runtime, revision, testsPassed, readyForReview }) => ({ id, title, goal, status, createdAt, ...(coding?{codingProgress:{runtime,revision:revision||0,testsPassed:testsPassed===true,readyForReview:readyForReview===true}}:{}) })),
     messages: state.messages.filter(m => ids.has(m.projectId)).slice(-100).map(({ id, projectId, author, body, model, provider, createdAt }) => ({ id, projectId, author, body, model, provider, createdAt })),
     artifacts: state.artifacts.filter(a => ids.has(a.projectId)).slice(-20).map(({ id, projectId, author, title, content, status, createdAt }) => ({ id, projectId, author, title, content, status, createdAt })),
     activity: run ? { status: run.status, currentAgent: run.currentAgent, turns: run.turns, maxTurns: run.maxTurns } : null,
