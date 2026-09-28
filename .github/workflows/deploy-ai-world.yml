@@ -30,4 +30,4 @@ jobs:
       - name: Add the world snapshot table without changing existing tables
         run: npx wrangler d1 execute nu-bi --remote --file db/migrations/021_ai_world.sql
       - name: Deploy the verified bundle
-        run: npx wrangler deploy
+        run: node scripts/ai-world/deploy.mjs
