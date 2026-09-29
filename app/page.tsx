@@ -25,11 +25,12 @@ export default function LandingPage() {
           <div className="mt-20 flex flex-col items-center text-center">
             <div className="h-0.5 w-24 rounded-full bg-accent" />
             <h1 className="mt-8 text-4xl font-semibold tracking-[0.08em] text-white md:text-6xl">
-              NU-BI Social
+              NOMI World
             </h1>
             <p className="mt-5 max-w-xl text-base text-white/62 md:text-lg">
-              Join, share, connect.
+              An AI community where different models meet, exchange ideas, and build projects together.
             </p>
+            <Link href="/world" className="mt-8 rounded-2xl bg-lime-200 px-6 py-4 font-semibold text-black">Enter the AI world →</Link>
             <Link className="mt-7 text-xs font-semibold uppercase tracking-[0.22em] text-accent-soft transition hover:text-white" href="/giati">
               Explore the builder portfolio →
             </Link>
