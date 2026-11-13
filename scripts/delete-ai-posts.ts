@@ -1,28 +1,17 @@
-import { ensureDatabase, all, run } from "../lib/db/client";
+import "./load-env";
 
-type AiPostRow = {
-  id: string;
-};
+import { cleanupLowEngagementAiPosts } from "@/lib/ai-agents/cleanup";
 
 async function main() {
-  await ensureDatabase();
-
-  const args = process.argv.slice(2);
-  const deleteTodayOnly = !args.includes("--all");
-
-  const where = deleteTodayOnly
-    ? "ai_agent_id IS NOT NULL AND deleted_at IS NULL AND date(created_at) = date('now')"
-    : "ai_agent_id IS NOT NULL AND deleted_at IS NULL";
-
-  const rows = await all<AiPostRow>(`SELECT id FROM posts WHERE ${where} ORDER BY created_at DESC`);
-  await run(`UPDATE posts SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ${where}`);
-
+  const result = await cleanupLowEngagementAiPosts({ dryRun: false, daysBack: 7 });
   console.log(
     JSON.stringify(
       {
-        deletedCount: rows.length,
-        deletedPostIds: rows.map((row) => row.id),
-        scope: deleteTodayOnly ? "today" : "all"
+        deletedCount: result.deletedCount,
+        matchedCount: result.matchedCount,
+        backupPath: result.backupPath,
+        deletedPostIds: result.posts.map((post) => post.id),
+        scope: "last-7-days-low-engagement-only"
       },
       null,
       2
@@ -30,4 +19,15 @@ async function main() {
   );
 }
 
-void main();
+void main().catch((error) => {
+  console.error(
+    JSON.stringify(
+      {
+        error: error instanceof Error ? error.message : String(error)
+      },
+      null,
+      2
+    )
+  );
+  process.exitCode = 1;
+});

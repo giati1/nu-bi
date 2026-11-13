@@ -19,8 +19,7 @@ export function LiveRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
       if (!document.hasFocus()) {
         return;
       }
-      const activeTag = document.activeElement?.tagName?.toLowerCase();
-      if (!force && (activeTag === "input" || activeTag === "textarea")) {
+      if (!force && hasActiveDraftInput()) {
         return;
       }
       const now = Date.now();
@@ -33,6 +32,7 @@ export function LiveRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
       });
     };
 
+    const timer = window.setInterval(() => refresh(false), intervalMs);
     const onFocus = () => refresh(true);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -44,10 +44,29 @@ export function LiveRefresh({ intervalMs = 15000 }: { intervalMs?: number }) {
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [intervalMs, pending, router]);
 
   return null;
+}
+
+function hasActiveDraftInput() {
+  const activeElement = document.activeElement;
+  if (!activeElement) {
+    return false;
+  }
+
+  if (activeElement instanceof HTMLTextAreaElement) {
+    return activeElement.value.trim().length > 0;
+  }
+
+  if (activeElement instanceof HTMLInputElement) {
+    const textLikeTypes = new Set(["", "text", "search", "email", "url", "tel"]);
+    return textLikeTypes.has(activeElement.type) && activeElement.value.trim().length > 0;
+  }
+
+  return activeElement instanceof HTMLElement && activeElement.isContentEditable;
 }

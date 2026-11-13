@@ -48,7 +48,11 @@ export default async function PostDetailPage({
       )}
       <section className="space-y-4">
         {comments.map((comment) => (
-          <article className="glass-panel rounded-[28px] p-5" key={comment.id}>
+          <article
+            className="glass-panel rounded-[28px] p-5"
+            key={comment.id}
+            style={{ marginLeft: `${comment.depth * 18}px` }}
+          >
             <div className="flex items-center gap-3">
               <Avatar className="h-11 w-11" name={comment.author.displayName} src={comment.author.avatarUrl} />
               <div>
@@ -56,6 +60,11 @@ export default async function PostDetailPage({
                 <p className="text-sm text-white/50">@{comment.author.username}</p>
               </div>
             </div>
+            {comment.depth > 0 ? (
+              <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-white/40">
+                Reply
+              </p>
+            ) : null}
             {comment.body ? <p className="mt-4 whitespace-pre-wrap text-white/80">{comment.body}</p> : null}
             {comment.media.length > 0 ? (
               <div className="mt-4 space-y-3">

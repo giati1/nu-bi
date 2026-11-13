@@ -47,6 +47,68 @@ export function FeedComposer() {
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || selectedFile) {
+      return;
+    }
+
+    const raw = window.sessionStorage.getItem("nubi-ai-generated-media");
+    if (!raw) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const payload = JSON.parse(raw) as {
+          url: string;
+          mimeType: string | null;
+          filename: string;
+        };
+        const response = await fetch(payload.url);
+        if (!response.ok) {
+          return;
+        }
+        const blob = await response.blob();
+        if (cancelled) {
+          return;
+        }
+        const file = new File([blob], payload.filename || "nubi-ai-media", {
+          type: payload.mimeType || blob.type || "video/mp4"
+        });
+        setSelectedFile(file);
+        const nextPreviewUrl = URL.createObjectURL(file);
+        setPreviewUrl((current) => {
+          if (current) {
+            URL.revokeObjectURL(current);
+          }
+          return nextPreviewUrl;
+        });
+        if (file.type.startsWith("video/")) {
+          const metadata = await getVideoMetadata(file);
+          if (cancelled) {
+            return;
+          }
+          setVideoDuration(metadata.duration);
+          setTrimStart(0);
+          setTrimEnd(Math.min(metadata.duration || 0, MAX_VIDEO_SECONDS));
+          setCoverTime(0);
+        }
+        window.sessionStorage.removeItem("nubi-ai-generated-media");
+        setSuccessMessage("AI-generated media loaded into the composer.");
+      } catch {
+        window.sessionStorage.removeItem("nubi-ai-generated-media");
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFile]);
+
   return (
     <form
       className="glass-panel min-w-0 overflow-hidden rounded-[28px] p-4 shadow-panel md:p-5"

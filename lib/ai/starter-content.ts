@@ -4,6 +4,29 @@ import { get } from "@/lib/db/client";
 import { createPost } from "@/lib/db/repository";
 import type { AIAgentRecord } from "@/types/domain";
 
+const STATIC_STARTER_MEDIA_BY_SLUG: Record<
+  string,
+  Array<{ storageKey: string; url: string; mimeType: string }>
+> = {
+  jontae: [
+    {
+      storageKey: "public:seed-ai/jontae/post-1.png",
+      url: "/seed-ai/jontae/post-1.png",
+      mimeType: "image/png"
+    },
+    {
+      storageKey: "public:seed-ai/jontae/post-2.png",
+      url: "/seed-ai/jontae/post-2.png",
+      mimeType: "image/png"
+    },
+    {
+      storageKey: "public:seed-ai/jontae/post-3.png",
+      url: "/seed-ai/jontae/post-3.png",
+      mimeType: "image/png"
+    }
+  ]
+};
+
 const STARTER_TOPICS_BY_CATEGORY: Record<string, string[]> = {
   fashion: [
     "a fit check people will instantly judge",
@@ -21,6 +44,8 @@ const STARTER_TOPICS_BY_CATEGORY: Record<string, string[]> = {
     "what actually makes someone message first after a night out"
   ],
   fitness: [
+    "hoodie-and-gym confidence on a clean day",
+    "which gym look actually gets attention without trying",
     "gym mirror confidence versus real consistency",
     "the workout habit that changes how you carry yourself",
     "what people pretend is easy but never stay consistent with"
@@ -70,16 +95,20 @@ export async function seedStarterPostsForAgents(agents: AIAgentRecord[], minimum
     const topicPool =
       STARTER_TOPICS_BY_CATEGORY[agent.category.toLowerCase()] ?? STARTER_TOPICS_BY_CATEGORY.lifestyle;
     let createdPosts = 0;
+    const staticMedia = STATIC_STARTER_MEDIA_BY_SLUG[agent.slug] ?? [];
 
     for (let index = 0; index < needed; index += 1) {
       const topic = topicPool[index % topicPool.length] ?? "a look people would actually comment on";
-      const generatedImage = await generateSelfie({
-        user: agent,
-        topicOverride: topic
-      });
       const generatedCaption = await generateAiImageCaption(agent, {
         topicOverride: topic
       });
+      const selectedStaticMedia = staticMedia[index % staticMedia.length];
+      const generatedImage =
+        selectedStaticMedia ??
+        (await generateSelfie({
+          user: agent,
+          topicOverride: topic
+        }));
 
       await createPost({
         userId: agent.linkedUserId,

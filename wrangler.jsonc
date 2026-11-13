@@ -31,7 +31,14 @@
     "OPENAI_BASE_URL": "https://api.openai.com/v1",
     "OPENAI_TEXT_MODEL": "gpt-4.1-mini",
     "OPENAI_IMAGE_MODEL": "gpt-image-1-mini",
-    "AI_AGENT_ADMIN_USERNAMES": "nubi"
+    "OPENAI_VIDEO_MODEL": "sora-2",
+    "AI_AGENT_ADMIN_USERNAMES": "nubi",
+    "AUTO_POST_ENABLED": "false",
+    "AUTO_POST_CRON": "0 14 * * *",
+    "AUTO_POST_FREQUENCY": "daily",
+    "AUTO_POST_TIME": "14:00",
+    "AUTO_REPLY_ENABLED": "true",
+    "REQUIRE_APPROVAL_BEFORE_POSTING": "false"
   },
   "d1_databases": [
     {
@@ -54,6 +61,8 @@
         "NODE_ENV": "production",
         "CLOUDFLARE_ENV": "preview",
         "NEXT_PUBLIC_APP_URL": "https://nu-bi-preview.cedricfjohnson.workers.dev",
+        "GOOGLE_CLIENT_ID": "273717790286-cs5jcma04nthbrai7edgcaii736mq1ob.apps.googleusercontent.com",
+        "GOOGLE_REDIRECT_URI": "https://nu-bi-preview.cedricfjohnson.workers.dev/api/auth/google/callback",
         "DATABASE_DRIVER": "d1",
         "STORAGE_DRIVER": "r2",
         "NEXT_PUBLIC_MEDIA_BASE_PATH": "/api/media",
@@ -62,7 +71,14 @@
         "OPENAI_BASE_URL": "https://api.openai.com/v1",
         "OPENAI_TEXT_MODEL": "gpt-4.1-mini",
         "OPENAI_IMAGE_MODEL": "gpt-image-1-mini",
-        "AI_AGENT_ADMIN_USERNAMES": "nubi"
+        "OPENAI_VIDEO_MODEL": "sora-2",
+        "AI_AGENT_ADMIN_USERNAMES": "nubi",
+        "AUTO_POST_ENABLED": "false",
+        "AUTO_POST_CRON": "0 14 * * *",
+        "AUTO_POST_FREQUENCY": "daily",
+        "AUTO_POST_TIME": "14:00",
+        "AUTO_REPLY_ENABLED": "true",
+        "REQUIRE_APPROVAL_BEFORE_POSTING": "false"
       },
       "d1_databases": [
         {

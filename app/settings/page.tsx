@@ -23,9 +23,9 @@ const items = [
     icon: Bookmark
   },
   {
-    href: "/ai",
-    title: "AI Studio",
-    description: "Generate visuals and use caption or reply tools.",
+    href: "/ai-tools",
+    title: "AI Tools",
+    description: "Generate videos, animate images, chat with personas, and use voice tools.",
     icon: Sparkles
   }
 ];

@@ -1,4 +1,5 @@
 import { hashPassword } from "../lib/auth/password";
+import { ensureGeneratedAiUsers } from "../lib/ai/ai-users";
 import { ensureDatabase, run } from "../lib/db/client";
 import { ensurePlatformAIAgents } from "../lib/ai-agents/bootstrap";
 import {
@@ -55,6 +56,7 @@ async function main() {
   }
 
   await ensurePlatformAIAgents(passwordHash);
+  await ensureGeneratedAiUsers(9);
 
   await run(`UPDATE profiles SET bio = ?, location = ? WHERE user_id = ?`, [
     "Building social products with an eye for signal and culture.",

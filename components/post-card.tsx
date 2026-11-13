@@ -11,6 +11,7 @@ import { AdminEngagementControls } from "@/components/admin-engagement-controls"
 import { FeedVideo } from "@/components/feed-video";
 import { PostViewTracker } from "@/components/post-view-tracker";
 import { QuoteRepostButton } from "@/components/quote-repost-button";
+import { getProfileHref } from "@/lib/identity";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import type { FeedPost } from "@/types/domain";
 
@@ -32,6 +33,7 @@ export function PostCard({
   const hasMedia = post.media.length > 0;
   const hasVideo = post.media.some((item) => isVideoMedia(item.mimeType, item.url));
   const ViewIcon = hasVideo ? Play : Eye;
+  const authorProfileHref = getProfileHref(post.author.username);
 
   function markMediaFailed(mediaId: string) {
     setFailedMediaIds((current) => (current.includes(mediaId) ? current : [...current, mediaId]));
@@ -40,20 +42,37 @@ export function PostCard({
   return (
     <article className="panel-soft edge-light min-w-0 overflow-hidden rounded-[34px] border border-white/[0.08] p-4 md:p-5">
       <div className="flex min-w-0 items-start justify-between gap-4">
-        <Link className="flex min-w-0 items-center gap-3" href={`/profile/${post.author.username}`}>
-          <Avatar
-            className="h-12 w-12"
-            name={post.author.displayName}
-            src={post.author.avatarUrl}
-          />
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-white md:text-base">{post.author.displayName}</p>
-            <p className="truncate text-xs uppercase tracking-[0.16em] text-white/42 md:text-[11px]">
-              @{post.author.username} / {formatRelativeDate(post.createdAt)}
-              {post.status && post.status !== "published" ? ` | ${post.status}` : ""}
-            </p>
+        {authorProfileHref ? (
+          <Link className="flex min-w-0 items-center gap-3" href={authorProfileHref}>
+            <Avatar
+              className="h-12 w-12"
+              name={post.author.displayName}
+              src={post.author.avatarUrl}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold text-white md:text-base">{post.author.displayName}</p>
+              <p className="truncate text-xs uppercase tracking-[0.16em] text-white/42 md:text-[11px]">
+                @{post.author.username} / {formatRelativeDate(post.createdAt)}
+                {post.status && post.status !== "published" ? ` | ${post.status}` : ""}
+              </p>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar
+              className="h-12 w-12"
+              name={post.author.displayName}
+              src={post.author.avatarUrl}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold text-white md:text-base">{post.author.displayName}</p>
+              <p className="truncate text-xs uppercase tracking-[0.16em] text-white/42 md:text-[11px]">
+                Profile unavailable / {formatRelativeDate(post.createdAt)}
+                {post.status && post.status !== "published" ? ` | ${post.status}` : ""}
+              </p>
+            </div>
           </div>
-        </Link>
+        )}
         <div className="flex shrink-0 gap-2">
           {post.author.id === viewerId ? (
             <Link
@@ -336,8 +355,12 @@ function RichPostText({ text }: { text: string }) {
         }
         if (/^@[a-z0-9_]{3,24}$/i.test(part)) {
           const username = part.slice(1);
+          const profileHref = getProfileHref(username);
+          if (!profileHref) {
+            return <span key={`${part}-${index}`}>{part}</span>;
+          }
           return (
-            <Link className="font-medium text-accent-soft hover:text-white" href={`/profile/${username}`} key={`${part}-${index}`}>
+            <Link className="font-medium text-accent-soft hover:text-white" href={profileHref} key={`${part}-${index}`}>
               {part}
             </Link>
           );

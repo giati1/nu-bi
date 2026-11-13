@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
+import { HomeAIToolsPanel } from "@/components/home-ai-tools-panel";
 import { HomeStoriesPanel } from "@/components/home-stories-panel";
 import { MoodFeedPanel } from "@/components/mood-feed-panel";
 import { Avatar } from "@/components/avatar";
 import { requirePageViewer } from "@/lib/auth/session";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
+import { getProfileHref, resolveStoryDestinationPath } from "@/lib/identity";
 import {
   getActiveStories,
   getConversationSummaries,
@@ -29,6 +31,7 @@ export default async function HomePage() {
   const fallbackStoryItems = [
     {
       id: `viewer-${viewer.id}`,
+      type: "storyAction" as const,
       label: "Your story",
       href: "/creator",
       imageUrl: viewer.avatarUrl,
@@ -38,21 +41,29 @@ export default async function HomePage() {
       body: "Post a quick update, tease a drop, or share something worth pinning.",
       ctaLabel: "Create story"
     },
-    ...suggestions.slice(0, 4).map((user) => ({
-      id: `suggested-${user.id}`,
-      label: user.displayName,
-      href: `/profile/${user.username}`,
-      imageUrl: user.avatarUrl,
-      status: "new" as const,
-      meta: "New",
-      body: `Check in on ${user.displayName}'s latest profile updates and posts.`,
-      ctaLabel: "Open profile"
-    })),
+    ...suggestions.slice(0, 4).map((user) => {
+      const profileHref = getProfileHref(user.username);
+      const existingConversation = conversations.find((conversation) => conversation.counterpart.id === user.id);
+      return {
+        id: `suggested-${user.id}`,
+        type: "profileShortcut" as const,
+        label: user.displayName,
+        href: profileHref ?? undefined,
+        secondaryHref: existingConversation ? `/messages/${existingConversation.id}` : undefined,
+        secondaryCtaLabel: existingConversation ? "Message" : undefined,
+        imageUrl: user.avatarUrl,
+        status: "new" as const,
+        meta: "New",
+        body: `Check in on ${user.displayName}'s latest profile updates and posts.`,
+        ctaLabel: profileHref ? "Open profile" : "Message"
+      };
+    }),
     ...conversations
       .filter((conversation) => !suggestions.some((user) => user.id === conversation.counterpart.id))
       .slice(0, 3)
       .map((conversation) => ({
         id: `conversation-${conversation.id}`,
+        type: "messageShortcut" as const,
         label: conversation.counterpart.displayName,
         href: `/messages/${conversation.id}`,
         imageUrl: conversation.counterpart.avatarUrl,
@@ -68,8 +79,13 @@ export default async function HomePage() {
   const storyItems = stories.length > 0
     ? stories.map((story, index) => ({
         id: story.id,
+        type: "realStory" as const,
         label: story.author.displayName,
-        href: story.destinationPath ?? `/profile/${story.author.username}`,
+        href:
+          resolveStoryDestinationPath({
+            destinationPath: story.destinationPath,
+            authorUsername: story.author.username
+          }) ?? undefined,
         imageUrl: story.mediaUrl ?? story.author.avatarUrl,
         status:
           story.author.id === viewer.id
@@ -96,14 +112,24 @@ export default async function HomePage() {
     : fallbackStoryItems;
 
   const highlightItems = [
-    ...suggestions.slice(0, 2).map((user) => ({
-      id: `highlight-profile-${user.id}`,
-      label: user.displayName,
-      href: `/profile/${user.username}`,
-      imageUrl: user.avatarUrl,
-      eyebrow: "Creator Spotlight",
-      detail: `Open ${user.displayName}'s profile and latest posts.`
-    })),
+    ...suggestions
+      .slice(0, 2)
+      .map((user) => {
+        const profileHref = getProfileHref(user.username);
+        if (!profileHref) {
+          return null;
+        }
+
+        return {
+          id: `highlight-profile-${user.id}`,
+          label: user.displayName,
+          href: profileHref,
+          imageUrl: user.avatarUrl,
+          eyebrow: "Creator Spotlight",
+          detail: `Open ${user.displayName}'s profile and latest posts.`
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item)),
     ...conversations.slice(0, 1).map((conversation) => ({
       id: `highlight-message-${conversation.id}`,
       label: conversation.counterpart.displayName,
@@ -130,13 +156,34 @@ export default async function HomePage() {
             <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">Suggested people</p>
             <div className="mt-4 space-y-3">
               {suggestions.slice(0, 4).map((user) => (
-                <Link className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5" href={`/profile/${user.username}`} key={user.id}>
-                  <Avatar className="h-10 w-10" name={user.displayName} src={user.avatarUrl} />
-                  <div>
-                    <p className="text-sm font-medium">{user.displayName}</p>
-                    <p className="text-xs text-white/50">@{user.username}</p>
-                  </div>
-                </Link>
+                (() => {
+                  const profileHref = getProfileHref(user.username);
+                  const content = (
+                    <>
+                      <Avatar className="h-10 w-10" name={user.displayName} src={user.avatarUrl} />
+                      <div>
+                        <p className="text-sm font-medium">{user.displayName}</p>
+                        <p className="text-xs text-white/50">
+                          {user.username ? `@${user.username}` : "Profile unavailable"}
+                        </p>
+                      </div>
+                    </>
+                  );
+
+                  if (!profileHref) {
+                    return (
+                      <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5" key={user.id}>
+                        {content}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5" href={profileHref} key={user.id}>
+                      {content}
+                    </Link>
+                  );
+                })()
               ))}
             </div>
           </section>
@@ -202,6 +249,19 @@ export default async function HomePage() {
         >
           Create post
         </Link>
+      </section>
+      <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
+        <Link
+          className="rounded-[26px] border border-accent/35 bg-[linear-gradient(180deg,rgba(248,113,113,0.22),rgba(239,68,68,0.12))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(127,29,29,0.18)] transition hover:border-accent/55 hover:bg-[linear-gradient(180deg,rgba(248,113,113,0.28),rgba(239,68,68,0.16))]"
+          href="/ai-tools"
+        >
+          <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">AI Tools</p>
+          <h2 className="mt-2 text-2xl font-semibold">Open AI tools</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/68">
+            Go straight to text-to-video, image-to-video, persona chat, and voice tools.
+          </p>
+        </Link>
+        <HomeAIToolsPanel />
       </section>
       <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
       {feed.length === 0 ? (

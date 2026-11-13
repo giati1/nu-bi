@@ -1,7 +1,7 @@
-name: Deploy NOMI World
+name: Deploy NOMI Production
 on:
   push:
-    branches: [codex/ai-world]
+    branches: [main, codex/ai-world]
   workflow_dispatch:
 concurrency:
   group: cloudflare-production-deploy
@@ -27,7 +27,7 @@ jobs:
       - name: Prepare local build database before parallel page workers
         run: npm run db:init
       - run: npm run cf:build
-      - name: Add the world snapshot table without changing existing tables
-        run: npx wrangler d1 execute nu-bi --remote --file db/migrations/021_ai_world.sql
+      - name: Apply pending production database migrations
+        run: npx wrangler d1 migrations apply nu-bi --remote
       - name: Deploy the verified bundle
         run: node scripts/ai-world/deploy.mjs

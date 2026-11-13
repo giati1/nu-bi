@@ -1,9 +1,11 @@
 import type { AgentGeneratedContent, NuBiAIAdapter } from "@/lib/ai/contracts";
+import { saveUploadedFile } from "@/lib/storage";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
 const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL ?? "gpt-4.1-mini";
 const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini";
+const OPENAI_VIDEO_MODEL = process.env.OPENAI_VIDEO_MODEL ?? "sora-2";
 const BRAND_GUARDRAIL =
   "You are NU-BI AI. Never mention provider names, model names, APIs, or backend vendors. If asked who powers you, answer only as NU-BI AI and stay focused on helping with the task.";
 
@@ -261,6 +263,106 @@ export function getAIAdapter(): NuBiAIAdapter {
   return OPENAI_API_KEY ? openAIAdapter : fallbackAdapter;
 }
 
+export async function generateVideoClip(input: {
+  prompt: string;
+  style: string;
+  mood?: string;
+  seconds: "4" | "8";
+  size: "720x1280" | "1280x720";
+  referenceImage?: File | null;
+}) {
+  if (!OPENAI_API_KEY) {
+    throw new Error("Video generation is not configured.");
+  }
+
+  const job = input.referenceImage
+    ? await createVideoWithReference({
+        ...input,
+        referenceImage: input.referenceImage
+      })
+    : await callOpenAIVideos("/videos", {
+        method: "POST",
+        body: {
+          model: OPENAI_VIDEO_MODEL,
+          prompt: buildVideoPrompt(input),
+          seconds: input.seconds,
+          size: input.size
+        }
+      });
+
+  if (!job) {
+    throw new Error("Video generation is not configured.");
+  }
+
+  const completedJob = await pollVideoJob(job);
+  const videoId = readVideoId(completedJob);
+
+  const videoResponse = await fetch(`${OPENAI_BASE_URL}/videos/${videoId}/content`, {
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    cache: "no-store"
+  });
+
+  if (!videoResponse.ok) {
+    const payload = await videoResponse.text();
+    throw new Error(payload || "OpenAI video download failed.");
+  }
+
+  const videoBytes = await videoResponse.arrayBuffer();
+  const storedVideo = await saveUploadedFile({
+    name: `nubi-ai-video-${videoId}.mp4`,
+    type: videoResponse.headers.get("content-type") || "video/mp4",
+    async arrayBuffer() {
+      return videoBytes;
+    }
+  });
+
+  const thumbnailUrl = await downloadVideoVariant(videoId, "thumbnail");
+
+  return {
+    prompt: input.prompt,
+    storageKey: storedVideo.storageKey,
+    mimeType: storedVideo.mimeType,
+    url: storedVideo.url,
+    thumbnailUrl,
+    size: input.size,
+    seconds: input.seconds
+  };
+}
+
+async function createVideoWithReference(input: {
+  prompt: string;
+  style: string;
+  mood?: string;
+  seconds: "4" | "8";
+  size: "720x1280" | "1280x720";
+  referenceImage: File;
+}) {
+  const form = new FormData();
+  form.set("model", OPENAI_VIDEO_MODEL);
+  form.set("prompt", buildVideoPrompt(input));
+  form.set("seconds", input.seconds);
+  form.set("size", input.size);
+  form.set("input_reference", input.referenceImage);
+
+  const response = await fetch(`${OPENAI_BASE_URL}/videos`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    body: form,
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(payload || "OpenAI video request failed.");
+  }
+
+  return (await response.json()) as Record<string, unknown>;
+}
+
 async function createTextCompletion(instructions: string, input: string) {
   const response = await callOpenAI({
     model: OPENAI_TEXT_MODEL,
@@ -345,6 +447,35 @@ async function callOpenAIImages(body: Record<string, unknown>) {
   if (!response.ok) {
     const payload = await response.text();
     throw new Error(payload || "OpenAI image request failed.");
+  }
+
+  return (await response.json()) as Record<string, unknown>;
+}
+
+async function callOpenAIVideos(
+  path: string,
+  input: {
+    method?: "GET" | "POST";
+    body?: Record<string, unknown>;
+  } = {}
+) {
+  if (!OPENAI_API_KEY) {
+    return null;
+  }
+
+  const response = await fetch(`${OPENAI_BASE_URL}${path}`, {
+    method: input.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      ...(input.body ? { "Content-Type": "application/json" } : {})
+    },
+    body: input.body ? JSON.stringify(input.body) : undefined,
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(payload || "OpenAI video request failed.");
   }
 
   return (await response.json()) as Record<string, unknown>;
@@ -455,6 +586,96 @@ function shouldRetryImageModel(error: unknown) {
     message.includes("unsupported model") ||
     message.includes("invalid model")
   );
+}
+
+async function pollVideoJob(initialJob: Record<string, unknown>) {
+  let current = initialJob;
+
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    const status = readVideoStatus(current);
+    if (status === "completed") {
+      return current;
+    }
+    if (status === "failed") {
+      throw new Error(readVideoError(current) || "Video generation failed.");
+    }
+
+    await wait(4000);
+    const next = await callOpenAIVideos(`/videos/${readVideoId(current)}`);
+    if (!next) {
+      throw new Error("Video generation is not configured.");
+    }
+    current = next;
+  }
+
+  throw new Error("Video generation timed out. Try a shorter clip or try again.");
+}
+
+function buildVideoPrompt(input: { prompt: string; style: string; mood?: string }) {
+  return [
+    "Create a polished short-form social video for NOMI.",
+    `Style: ${input.style}.`,
+    `Mood: ${input.mood ?? "focused"}.`,
+    "Keep motion readable on mobile and make the first seconds visually strong.",
+    `Prompt: ${input.prompt}`
+  ].join(" ");
+}
+
+function readVideoId(payload: Record<string, unknown>) {
+  const id = payload.id;
+  if (typeof id !== "string" || !id.trim()) {
+    throw new Error("OpenAI video job did not return an id.");
+  }
+  return id;
+}
+
+function readVideoStatus(payload: Record<string, unknown>) {
+  return typeof payload.status === "string" ? payload.status : "queued";
+}
+
+function readVideoError(payload: Record<string, unknown>) {
+  const error = payload.error;
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" ? message : "";
+}
+
+async function downloadVideoVariant(videoId: string, variant: "thumbnail") {
+  if (!OPENAI_API_KEY) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${OPENAI_BASE_URL}/videos/${videoId}/content?variant=${variant}`, {
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`
+      },
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const bytes = await response.arrayBuffer();
+    const stored = await saveUploadedFile({
+      name: `nubi-ai-video-${videoId}.webp`,
+      type: response.headers.get("content-type") || "image/webp",
+      async arrayBuffer() {
+        return bytes;
+      }
+    });
+
+    return stored.url;
+  } catch {
+    return null;
+  }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseJson<T>(value: string) {

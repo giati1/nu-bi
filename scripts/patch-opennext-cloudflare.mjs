@@ -14,6 +14,7 @@ const nextPackageFile = path.join(process.cwd(), "node_modules", "next", "packag
 const cachePatchedMarker = "CacheHandler = OpenNextCacheHandler;";
 const manifestPatchedMarker = 'globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {};';
 const manifestLoaderPatchedMarker = "loadClientReferenceManifest(manifestPath, entryName)";
+const cleanDirectoryPatchedMarker = "await rmWithRetries(path3);";
 const badAwaitImportMarker =
   "CacheHandler = (await import('./\" + cacheHandlerFileBase + \".mjs')).OpenNextCacheHandler;";
 const legacyDynamicRequireMarker =
@@ -28,6 +29,7 @@ const incrementalCachePattern =
 const patchCacheFunctionPattern = /async function patchCache\(code, config\) \{[\s\S]*?return patchedCode;\r?\n\}/;
 const inlineEvalManifestSectionPattern =
   /(\/\/ src\/cli\/build\/patches\/to-investigate\/inline-eval-manifest\.ts\r?\n)function inlineEvalManifest\(code, config\) \{[\s\S]*?\r?\n(\/\/ src\/cli\/build\/patches\/to-investigate\/inline-middleware-manifest-require\.ts)/;
+const cleanDirectoryFunctionPattern = /async function cleanDirectory\(path3\) \{\s+return await rm\(path3, \{ recursive: true, force: true \}\);\s+\}/;
 
 const patchedFunction = `async function patchCache(code, config) {
   console.log("# patchCache");
@@ -119,6 +121,32 @@ const patchedInlineEvalManifestFunction = [
   "}"
 ].join("\n");
 
+const patchedCleanDirectoryFunction = [
+  "async function cleanDirectory(path3) {",
+  "  await rmWithRetries(path3);",
+  "}",
+  "async function rmWithRetries(path3) {",
+  "  let lastError = null;",
+  "  for (let attempt = 0; attempt < 4; attempt += 1) {",
+  "    try {",
+  "      await rm(path3, { recursive: true, force: true });",
+  "      return;",
+  "    } catch (error) {",
+  "      lastError = error;",
+  "      if (!(error && typeof error === 'object' && 'code' in error && error.code === 'EBUSY')) {",
+  "        throw error;",
+  "      }",
+  "      if (attempt === 3) {",
+  '        console.warn("OpenNext cleanDirectory skipped due to Windows file lock:", path3);',
+  "        return;",
+  "      }",
+  "      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));",
+  "    }",
+  "  }",
+  "  throw lastError;",
+  "}"
+].join("\n");
+
 function log(message) {
   console.log(message);
 }
@@ -168,6 +196,10 @@ function assertPatched(text) {
 
   if (!text.includes(manifestPatchedMarker)) {
     failWithSnippet(`OpenNext manifest compatibility patch missing in ${targetFile}`, text);
+  }
+
+  if (!text.includes(cleanDirectoryPatchedMarker)) {
+    failWithSnippet(`OpenNext cleanDirectory compatibility patch missing in ${targetFile}`, text);
   }
 
   if (text.includes(legacyEvalManifestRequireMarker)) {
@@ -237,8 +269,9 @@ const cachePatchAlreadyApplied =
   !current.includes(legacyDynamicRequireMarker) &&
   !current.includes(badAwaitImportMarker);
 const manifestPatchAlreadyApplied = hasValidManifestPatch(current);
+const cleanDirectoryPatchAlreadyApplied = current.includes(cleanDirectoryPatchedMarker);
 
-if (cachePatchAlreadyApplied && manifestPatchAlreadyApplied) {
+if (cachePatchAlreadyApplied && manifestPatchAlreadyApplied && cleanDirectoryPatchAlreadyApplied) {
   log("PATCH ALREADY APPLIED");
   process.exit(0);
 }
@@ -252,6 +285,7 @@ log(`PATCH FUNCTION FOUND: ${patchFunctionFound}`);
 log(`PATCH inlineEvalManifest FUNCTION FOUND: ${inlineEvalManifestFunctionFound}`);
 log(`PATCH OLD PATTERN FOUND: ${oldPatternFound}`);
 log(`PATCH FALLBACK incrementalCacheHandlerPath FOUND: ${incrementalPatternFound}`);
+log(`PATCH cleanDirectory FUNCTION FOUND: ${cleanDirectoryFunctionPattern.test(current)}`);
 
 if (!cachePatchAlreadyApplied && !patchFunctionFound) {
   failWithSnippet("Unable to locate the patchCache function in @opennextjs/cloudflare/dist/cli/index.mjs.", current);
@@ -274,6 +308,10 @@ if (
   );
 }
 
+if (!cleanDirectoryPatchAlreadyApplied && !cleanDirectoryFunctionPattern.test(current)) {
+  failWithSnippet("Unable to locate the cleanDirectory function in @opennextjs/cloudflare/dist/cli/index.mjs.", current);
+}
+
 let replaced = current;
 
 if (!cachePatchAlreadyApplied) {
@@ -293,6 +331,15 @@ if (!manifestPatchAlreadyApplied) {
   if (replaced === beforeManifestReplace) {
     log("PATCH MANIFEST REPLACEMENT APPLIED: false");
     failWithSnippet("OpenNext manifest patch replacement did not modify the file.", beforeManifestReplace);
+  }
+}
+
+if (!cleanDirectoryPatchAlreadyApplied) {
+  const beforeCleanDirectoryReplace = replaced;
+  replaced = replaced.replace(cleanDirectoryFunctionPattern, patchedCleanDirectoryFunction);
+  if (replaced === beforeCleanDirectoryReplace) {
+    log("PATCH cleanDirectory REPLACEMENT APPLIED: false");
+    failWithSnippet("OpenNext cleanDirectory patch replacement did not modify the file.", beforeCleanDirectoryReplace);
   }
 }
 

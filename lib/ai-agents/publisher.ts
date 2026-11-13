@@ -1,4 +1,5 @@
 import { createPost } from "@/lib/db/repository";
+import { getAIAutomationSettings } from "@/lib/db/ai-repository";
 import type { AgentGeneratedContent } from "@/lib/ai/contracts";
 import type { AIAgentRecord, FeedPost } from "@/types/domain";
 
@@ -10,11 +11,15 @@ export async function publishAgentContent(input: {
   media?: Array<{ storageKey: string; url: string; mimeType: string | null }>;
 }): Promise<FeedPost | null> {
   const body = formatBody(input.content);
+  const automation = await getAIAutomationSettings();
+  if (!automation.autoPostEnabled) {
+    throw new Error("AI posting is disabled.");
+  }
   return await createPost({
     userId: input.agent.linkedUserId,
     body,
     contentType: "standard",
-    status: "draft",
+    status: automation.requireApprovalBeforePosting ? "draft" : "published",
     aiAgentId: input.agent.id,
     aiContentJobId: input.jobId,
     aiGenerationMode: input.content.contentMode,

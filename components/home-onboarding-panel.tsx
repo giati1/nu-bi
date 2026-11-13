@@ -5,6 +5,7 @@ import { Compass, PenSquare, UserRound } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/follow-button";
 import { InterestPicker } from "@/components/interest-picker";
+import { getProfileHref } from "@/lib/identity";
 import type { OnboardingSummary, UserSummary } from "@/types/domain";
 
 export function HomeOnboardingPanel({
@@ -18,6 +19,7 @@ export function HomeOnboardingPanel({
   interests: string[];
   viewerUsername: string;
 }) {
+  const viewerProfileHref = getProfileHref(viewerUsername);
   const steps = [
     {
       label: "Finish your profile",
@@ -119,21 +121,40 @@ export function HomeOnboardingPanel({
               <p className="text-sm font-medium text-white">Suggested people to follow</p>
               <p className="mt-1 text-xs text-white/56 md:text-sm md:text-white/58">Follow a few people to get your feed going.</p>
             </div>
-            <Link className="text-xs uppercase tracking-[0.16em] text-white/50 hover:text-white" href={`/profile/${viewerUsername}`}>
-              View profile
-            </Link>
+            {viewerProfileHref ? (
+              <Link className="text-xs uppercase tracking-[0.16em] text-white/50 hover:text-white" href={viewerProfileHref}>
+                View profile
+              </Link>
+            ) : null}
           </div>
           <div className="mt-4 space-y-3">
             {suggestions.slice(0, 3).map((user) => (
               <div className="flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/[0.03] p-3" key={user.id}>
-                <Link className="flex min-w-0 flex-1 items-center gap-3" href={`/profile/${user.username}`}>
-                  <Avatar className="h-11 w-11" name={user.displayName} src={user.avatarUrl} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-white">{user.displayName}</p>
-                    <p className="truncate text-sm text-white/55">@{user.username}</p>
-                    <p className="truncate text-xs text-white/45 md:text-sm">{user.bio || "Open profile and see what they post."}</p>
-                  </div>
-                </Link>
+                {(() => {
+                  const profileHref = getProfileHref(user.username);
+                  const content = (
+                    <>
+                      <Avatar className="h-11 w-11" name={user.displayName} src={user.avatarUrl} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-white">{user.displayName}</p>
+                        <p className="truncate text-sm text-white/55">
+                          {user.username ? `@${user.username}` : "Profile unavailable"}
+                        </p>
+                        <p className="truncate text-xs text-white/45 md:text-sm">{user.bio || "Open profile and see what they post."}</p>
+                      </div>
+                    </>
+                  );
+
+                  if (!profileHref) {
+                    return <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>;
+                  }
+
+                  return (
+                    <Link className="flex min-w-0 flex-1 items-center gap-3" href={profileHref}>
+                      {content}
+                    </Link>
+                  );
+                })()}
                 <FollowButton initialFollowing={false} userId={user.id} />
               </div>
             ))}

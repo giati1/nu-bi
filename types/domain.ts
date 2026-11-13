@@ -286,3 +286,28 @@ export type AIReviewPostRecord = {
   generationMode: string | null;
   author: Pick<UserSummary, "id" | "username" | "displayName" | "avatarUrl">;
 };
+
+export type AIAutomationSettings = {
+  autoPostEnabled: boolean;
+  autoPostCron: string;
+  autoPostFrequency: string;
+  autoPostTime: string;
+  autoReplyEnabled: boolean;
+  requireApprovalBeforePosting: boolean;
+};
+
+export type AILowEngagementCleanupCandidate = {
+  id: string;
+  body: string;
+  createdAt: string;
+  likeCount: number;
+  commentCount: number;
+  reactionCount: number;
+  isAiGenerated: boolean;
+  authorId: string;
+  authorUsername: string;
+  authorDisplayName: string;
+  source: string;
+  aiAgentId: string | null;
+  aiAgentSlug: string | null;
+};

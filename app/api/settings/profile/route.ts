@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
 import { updateProfile } from "@/lib/db/repository";
+import { normalizeUsername } from "@/lib/identity";
 import { profileUpdateSchema } from "@/lib/validators";
 import { z } from "zod";
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const parsed = profileUpdateSchema.parse(await request.json());
     const user = await updateProfile({
       userId: viewer.id,
-      username: parsed.username,
+      username: normalizeUsername(parsed.username),
       displayName: parsed.displayName,
       bio: parsed.bio,
       website: parsed.website || null,

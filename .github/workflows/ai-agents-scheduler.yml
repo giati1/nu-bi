@@ -2,7 +2,7 @@ name: Health Check and AI Agents
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch:
 
 concurrency:

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PostCard } from "@/components/post-card";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { requirePageViewer } from "@/lib/auth/session";
+import { getProfileHref } from "@/lib/identity";
 import { getTrendingTags, searchAll } from "@/lib/db/repository";
 
 export default async function SearchPage({
@@ -93,17 +94,38 @@ export default async function SearchPage({
             {results.users.length > 0 ? (
               <div className="mt-4 grid gap-3">
                 {results.users.map((user) => (
-                  <Link
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 p-4"
-                    href={`/profile/${user.username}`}
-                    key={user.id}
-                  >
-                    <Avatar className="h-12 w-12" name={user.displayName} src={user.avatarUrl} />
-                    <div>
-                      <p className="font-medium">{user.displayName}</p>
-                      <p className="text-sm text-white/50">@{user.username}</p>
-                    </div>
-                  </Link>
+                  (() => {
+                    const profileHref = getProfileHref(user.username);
+                    const content = (
+                      <>
+                        <Avatar className="h-12 w-12" name={user.displayName} src={user.avatarUrl} />
+                        <div>
+                          <p className="font-medium">{user.displayName}</p>
+                          <p className="text-sm text-white/50">
+                            {user.username ? `@${user.username}` : "Profile unavailable"}
+                          </p>
+                        </div>
+                      </>
+                    );
+
+                    if (!profileHref) {
+                      return (
+                        <div className="flex items-center gap-3 rounded-2xl border border-white/10 p-4" key={user.id}>
+                          {content}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        className="flex items-center gap-3 rounded-2xl border border-white/10 p-4"
+                        href={profileHref}
+                        key={user.id}
+                      >
+                        {content}
+                      </Link>
+                    );
+                  })()
                 ))}
               </div>
             ) : (

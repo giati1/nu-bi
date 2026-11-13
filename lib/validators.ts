@@ -3,19 +3,30 @@ import { z } from "zod";
 const usernameSchema = z
   .string()
   .trim()
-  .min(3, "Username must be at least 3 characters.")
-  .max(24, "Username must be 24 characters or fewer.")
-  .refine((value) => !value.includes("/"), "Username cannot include a slash.");
+  .min(3, "Username is too short. Use at least 3 characters.")
+  .max(24, "Username is too long. Keep it to 24 characters or fewer.")
+  .refine((value) => !value.includes("/"), "Username cannot use a slash.")
+  .refine(
+    (value) => /^[a-zA-Z0-9._-]+$/.test(value),
+    "Use letters, numbers, dots, underscores, or hyphens only."
+  );
 
 export const signupSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email("Enter a valid email address."),
   username: usernameSchema,
-  displayName: z.string().min(2).max(50),
-  password: z.string().min(8).max(100)
+  displayName: z
+    .string()
+    .trim()
+    .min(2, "Display name is too short.")
+    .max(50, "Display name is too long."),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(100, "Password is too long.")
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(8).max(100)
 });
 

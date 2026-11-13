@@ -1,9 +1,11 @@
 import crypto from "crypto";
+import { generateAiVoiceMedia } from "@/lib/ai/ai-voice";
 import { buildAiVoiceGuidance, resolveAiUserStyle } from "@/lib/ai/ai-users";
 import { generateReply } from "@/lib/ai/ai-comments";
 import { generateAgentThreadReply } from "@/lib/ai-agents/chat";
+import { maybeCreateAiDmImageReply } from "@/lib/ai-agents/dm-media";
 import { getCloudflareContextAsync } from "@/lib/cloudflare/context";
-import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
+import { getAIAgentByLinkedUserId, getAIAutomationSettings } from "@/lib/db/ai-repository";
 import { all, get } from "@/lib/db/client";
 import {
   addComment,
@@ -26,6 +28,10 @@ const lastReplyAtByChannel = new Map<string, number>();
 const DM_DELAY_RANGE_MS = { min: 2000, max: 8000 };
 const COMMENT_DELAY_RANGE_MS = { min: 5000, max: 15000 };
 const CHANNEL_COOLDOWN_RANGE_MS = { min: 5000, max: 10000 };
+const VOICE_DM_CHANCE = 0.24;
+const VOICE_DM_WINDOW_MS = 15 * 60 * 1000;
+
+const lastVoiceReplyAtByConversation = new Map<string, number>();
 
 export function queueAiDmAutoReply(input: {
   conversationId: string;
@@ -41,6 +47,11 @@ export function queueAiDmAutoReply(input: {
     channelKey: `conversation:${input.conversationId}`,
     triggerId: input.triggerMessageId
   }, async () => {
+    const automation = await getAIAutomationSettings();
+    if (!automation.autoReplyEnabled) {
+      return;
+    }
+
     const aiRecipientId = await resolveConversationCounterpart(input.conversationId, input.humanSenderId);
     if (!aiRecipientId) {
       return;
@@ -105,18 +116,48 @@ export function queueAiDmAutoReply(input: {
     }
 
     await enforceChannelCooldown(`conversation:${input.conversationId}`);
-    await sendMessage({
-      senderId: agent.linkedUserId,
-      conversationId: input.conversationId,
-      body: replyBody
+    const imageReply = await maybeCreateAiDmImageReply({
+      agent,
+      topicSeed: replyBody,
+      baseChance: 0.18
     });
+    const voiceReply = imageReply
+      ? null
+      : await maybeCreateVoiceDmReply({
+          conversationId: input.conversationId,
+          agent,
+          body: replyBody
+        });
+
+    await sendMessage(
+      imageReply
+        ? {
+            senderId: agent.linkedUserId,
+            conversationId: input.conversationId,
+            body: replyBody,
+            media: [imageReply]
+          }
+        : voiceReply
+        ? {
+            senderId: agent.linkedUserId,
+            conversationId: input.conversationId,
+            body: "",
+            media: [voiceReply]
+          }
+        : {
+            senderId: agent.linkedUserId,
+            conversationId: input.conversationId,
+            body: replyBody
+          }
+    );
 
     logReplySent({
       kind: "dm",
       jobId,
       channelKey: `conversation:${input.conversationId}`,
       actorId: agent.linkedUserId,
-      triggerId: input.triggerMessageId
+      triggerId: input.triggerMessageId,
+      mode: imageReply ? "image" : voiceReply ? "voice" : "text"
     });
   });
 }
@@ -135,6 +176,11 @@ export function queueAiCommentAutoReply(input: {
     channelKey: `post:${input.postId}`,
     triggerId: input.triggerCommentId
   }, async () => {
+    const automation = await getAIAutomationSettings();
+    if (!automation.autoReplyEnabled) {
+      return;
+    }
+
     const postAuthor = await get<{ user_id: string }>(
       `SELECT user_id FROM posts WHERE id = ? AND deleted_at IS NULL`,
       [input.postId]
@@ -178,10 +224,13 @@ export function queueAiCommentAutoReply(input: {
       return;
     }
 
+    const recentConversation = collectRecentCommentMemory(comments, triggerComment.id);
+
     const replyBody = (await generateReply({
       post,
       parentComment: triggerComment,
-      user: agent
+      user: agent,
+      recentComments: recentConversation
     })).trim();
 
     if (!replyBody) {
@@ -201,7 +250,8 @@ export function queueAiCommentAutoReply(input: {
       jobId,
       channelKey: `post:${input.postId}`,
       actorId: agent.linkedUserId,
-      triggerId: input.triggerCommentId
+      triggerId: input.triggerCommentId,
+      mode: "text"
     });
   });
 }
@@ -264,10 +314,43 @@ function logReplySent(input: {
   channelKey: string;
   actorId: string;
   triggerId: string;
+  mode: "text" | "voice" | "image";
 }) {
   console.log(
-    `[ai-auto-reply:${input.kind}] sent jobId=${input.jobId} channel=${input.channelKey} actor=${input.actorId} trigger=${input.triggerId}`
+    `[ai-auto-reply:${input.kind}] sent jobId=${input.jobId} channel=${input.channelKey} actor=${input.actorId} trigger=${input.triggerId} mode=${input.mode}`
   );
+}
+
+async function maybeCreateVoiceDmReply(input: {
+  conversationId: string;
+  agent: Awaited<ReturnType<typeof getAIAgentByLinkedUserId>>;
+  body: string;
+}) {
+  if (!input.agent) {
+    return null;
+  }
+
+  if (Math.random() > VOICE_DM_CHANCE) {
+    return null;
+  }
+
+  const voiceKey = `${input.agent.linkedUserId}:${input.conversationId}`;
+  const lastVoiceAt = lastVoiceReplyAtByConversation.get(voiceKey) ?? 0;
+  if (Date.now() - lastVoiceAt < VOICE_DM_WINDOW_MS) {
+    return null;
+  }
+
+  const voiceMedia = await generateAiVoiceMedia({
+    text: input.body,
+    user: input.agent
+  });
+
+  if (!voiceMedia) {
+    return null;
+  }
+
+  lastVoiceReplyAtByConversation.set(voiceKey, Date.now());
+  return voiceMedia;
 }
 
 async function attachToCloudflareWaitUntil(task: Promise<void>) {
@@ -301,4 +384,38 @@ function randomBetween(min: number, max: number) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function collectRecentCommentMemory(comments: Awaited<ReturnType<typeof getCommentsForPost>>, triggerCommentId: string) {
+  const commentsById = new Map(comments.map((comment) => [comment.id, comment]));
+  const triggerComment = commentsById.get(triggerCommentId);
+  if (!triggerComment) {
+    return [];
+  }
+
+  const chainRootId = getChainRootId(comments, triggerCommentId);
+  const chainComments = comments.filter(
+    (comment) => getChainRootId(comments, comment.id) === chainRootId
+  );
+
+  const memorySource = chainComments.length > 1
+    ? chainComments
+    : comments.filter((comment) => comment.id !== triggerCommentId || comment.body.trim());
+
+  return memorySource.slice(-8);
+}
+
+function getChainRootId(comments: Awaited<ReturnType<typeof getCommentsForPost>>, commentId: string) {
+  const commentsById = new Map(comments.map((comment) => [comment.id, comment]));
+  let current = commentsById.get(commentId);
+
+  while (current?.parentCommentId) {
+    const parent = commentsById.get(current.parentCommentId);
+    if (!parent) {
+      break;
+    }
+    current = parent;
+  }
+
+  return current?.id ?? commentId;
 }

@@ -52,7 +52,14 @@ export default async function ConversationPage({
                     @{conversation.counterpart.username}
                   </p>
                   <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/50">
-                    {conversation.lastMessage?.body || (conversation.lastMessage?.mediaMimeType?.startsWith("audio/") ? "Voice note" : "No messages yet")}
+                    {conversation.lastMessage?.body ||
+                      (conversation.lastMessage?.mediaMimeType?.startsWith("audio/")
+                        ? "Voice note"
+                        : conversation.lastMessage?.mediaMimeType?.startsWith("video/")
+                          ? "Video attachment"
+                          : conversation.lastMessage?.mediaMimeType?.startsWith("image/")
+                            ? "Photo attachment"
+                            : "No messages yet")}
                   </p>
                 </div>
                 {conversation.unreadCount > 0 ? (

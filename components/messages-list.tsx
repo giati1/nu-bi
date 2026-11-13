@@ -63,11 +63,11 @@ export function MessagesList({ conversations }: { conversations: ConversationSum
       </section>
       {filtered.length === 0 ? (
         <EmptyState
-          actionHref={conversations.length === 0 ? "/explore" : undefined}
-          actionLabel={conversations.length === 0 ? "Find people to follow" : undefined}
+          actionHref={conversations.length === 0 ? "/messages/new" : undefined}
+          actionLabel={conversations.length === 0 ? "Start conversation" : undefined}
           description={
             conversations.length === 0
-              ? "You do not have any conversations yet. Follow people from Explore, then message them from their profile."
+              ? "You do not have any conversations yet. Start with a person or one of the built-in NU-BI AI personalities."
               : "Try a name, username, or phrase from the latest message."
           }
           title={conversations.length === 0 ? "No messages yet" : "No matching conversations"}
@@ -146,6 +146,9 @@ function formatConversationPreview(conversation: ConversationSummary) {
   }
   if (message.mediaMimeType?.startsWith("video/")) {
     return `${prefix}sent a video`;
+  }
+  if (message.mediaMimeType?.startsWith("image/")) {
+    return `${prefix}sent a photo`;
   }
   if (message.mediaMimeType) {
     return `${prefix}sent an attachment`;

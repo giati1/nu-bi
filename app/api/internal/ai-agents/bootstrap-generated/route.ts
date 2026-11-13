@@ -3,6 +3,7 @@ import { requireInternalAdminViewer } from "@/lib/auth/internal";
 import { ensureGeneratedAiUsers } from "@/lib/ai/ai-users";
 import { seedStarterPostsForAgents } from "@/lib/ai/starter-content";
 import { runAiConversationPass } from "@/lib/ai-agents/conversation-loop";
+import { getAIAutomationSettings } from "@/lib/db/ai-repository";
 
 export async function POST(request: Request) {
   try {
@@ -11,12 +12,14 @@ export async function POST(request: Request) {
       count?: number;
       seedPosts?: boolean;
     };
-    const requestedCount = Number(payload.count ?? 8);
+    const requestedCount = Number(payload.count ?? 9);
     const count = Number.isFinite(requestedCount)
       ? Math.max(1, Math.min(Math.trunc(requestedCount), 24))
-      : 8;
+      : 9;
+    const automation = await getAIAutomationSettings();
     const agents = await ensureGeneratedAiUsers(count);
-    const seededPosts = payload.seedPosts === false ? [] : await seedStarterPostsForAgents(agents, 3);
+    const seededPosts =
+      payload.seedPosts === false || !automation.autoPostEnabled ? [] : await seedStarterPostsForAgents(agents, 3);
     const totalCreatedPosts = seededPosts.reduce((sum, item) => sum + item.createdPosts, 0);
     const conversationSummary = await runAiConversationPass({
       allAgents: agents,
