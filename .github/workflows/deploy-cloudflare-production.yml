@@ -1,15 +1,6 @@
 name: Deploy Cloudflare Production
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "app/giati/**"
-      - "public/portfolio/**"
-      - "app/page.tsx"
-      - "wrangler.jsonc"
-      - ".github/workflows/deploy-cloudflare-production.yml"
   workflow_dispatch:
     inputs:
       git_ref:
@@ -54,11 +45,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Prepare local build database
+        run: npm run db:init
+
       - name: Build Next.js app
         run: npm run build
 
       - name: Build Cloudflare worker bundle
         run: npm run cf:build
 
-      - name: Deploy production Worker
-        run: npm run cf:deploy
+      - name: Apply pending production database migrations
+        run: npx wrangler d1 migrations apply nu-bi --remote
+
+      - name: Deploy verified production Worker
+        run: node scripts/ai-world/deploy.mjs
