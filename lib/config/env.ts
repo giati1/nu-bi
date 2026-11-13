@@ -8,7 +8,7 @@ const defaultAppUrl = cloudflareEnv === "preview"
   ? "https://nu-bi-preview.cedricfjohnson.workers.dev"
   : `http://localhost:${defaultPort}`;
 const normalizedAppUrl = normalizeConfiguredAppUrl(process.env.NEXT_PUBLIC_APP_URL, cloudflareEnv, defaultAppUrl);
-const autoPostEnabled = parseBooleanFlag(process.env.AUTO_POST_ENABLED, true);
+const autoPostEnabled = parseBooleanFlag(process.env.AUTO_POST_ENABLED, false);
 const autoReplyEnabled = parseBooleanFlag(process.env.AUTO_REPLY_ENABLED, true);
 const requireApprovalBeforePosting = parseBooleanFlag(process.env.REQUIRE_APPROVAL_BEFORE_POSTING, false);
 

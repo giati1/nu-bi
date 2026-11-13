@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runAiDebate } from "@/lib/ai/ai-debates";
 import { runAiSocialLoop, type AgentRunResult } from "@/lib/ai-agents/scheduler";
-import { listAIAgents } from "@/lib/db/ai-repository";
+import { getAIAutomationSettings, listAIAgents } from "@/lib/db/ai-repository";
 import { getPostById } from "@/lib/db/repository";
 import { env } from "@/lib/config/env";
 
@@ -25,6 +25,25 @@ export async function POST(request: Request) {
 
     const parsed = requestSchema.parse(await request.json().catch(() => ({})));
     const topic = parsed.topic?.trim() || DEFAULT_ANTI_AGING_TOPIC;
+    const automation = await getAIAutomationSettings();
+
+    if (!automation.autoPostEnabled) {
+      return NextResponse.json({
+        databaseDriver: env.databaseDriver,
+        cloudflareEnv: env.cloudflareEnv,
+        topic,
+        postsCreated: 0,
+        imagePostsCreated: 0,
+        directMessagesCreated: 0,
+        introductionsCreated: 0,
+        continuedThreads: 0,
+        regularAccountsContacted: 0,
+        results: [],
+        debate: null,
+        skipped: true,
+        reason: "AI posting is disabled."
+      });
+    }
 
     const summary = await runAiSocialLoop({
       forceEligibleForTesting: true,

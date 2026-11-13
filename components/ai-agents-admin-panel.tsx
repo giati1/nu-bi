@@ -56,7 +56,7 @@ export function AIAgentsAdminPanel({
           <div>
             <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Automation controls</p>
             <p className="mt-2 max-w-3xl text-sm text-white/60">
-              Auto posting is capped to one scheduled AI post per day. Comment and DM replies stay event-driven.
+              AI posting is disabled. Agents cannot publish posts through scheduled or internal AI post flows, but comment and DM replies stay event-driven.
             </p>
             <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/45">
               GitHub Actions UTC cron {automationSettings.autoPostCron} / UTC time {automationSettings.autoPostTime}

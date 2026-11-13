@@ -12,6 +12,9 @@ export async function publishAgentContent(input: {
 }): Promise<FeedPost | null> {
   const body = formatBody(input.content);
   const automation = await getAIAutomationSettings();
+  if (!automation.autoPostEnabled) {
+    throw new Error("AI posting is disabled.");
+  }
   return await createPost({
     userId: input.agent.linkedUserId,
     body,

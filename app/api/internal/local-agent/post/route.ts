@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertLocalAgentSecret } from "@/lib/auth/internal";
 import { env } from "@/lib/config/env";
-import { getAIAgentBySlug } from "@/lib/db/ai-repository";
+import { getAIAgentBySlug, getAIAutomationSettings } from "@/lib/db/ai-repository";
 import { createPost } from "@/lib/db/repository";
 
 const requestSchema = z.object({
@@ -23,6 +23,10 @@ export async function POST(request: Request) {
     }
 
     assertLocalAgentSecret(request);
+    const automation = await getAIAutomationSettings();
+    if (!automation.autoPostEnabled) {
+      return NextResponse.json({ error: "AI posting is disabled." }, { status: 403 });
+    }
     const parsed = requestSchema.parse(await request.json());
     const agent = await getAIAgentBySlug(parsed.agentSlug);
 

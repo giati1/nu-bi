@@ -82,7 +82,7 @@ export async function runAiSocialLoop(options?: {
     : highAutonomy
       ? Math.max(2, Math.min(6, shuffledAgents.length === 0 ? 0 : Math.floor(Math.random() * 5) + 2))
       : Math.max(1, Math.min(3, shuffledAgents.length === 0 ? 0 : Math.floor(Math.random() * 3) + 1));
-  const autoPostingEnabledForRun = forceEligibleForTesting ? true : automation.autoPostEnabled;
+  const autoPostingEnabledForRun = automation.autoPostEnabled;
   const configuredMaxPosts = options?.maxPostsToCreate ?? defaultTargetCount;
   const targetCount = autoPostingEnabledForRun
     ? Math.min(shuffledAgents.length, Math.max(0, configuredMaxPosts))
