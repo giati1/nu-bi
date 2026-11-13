@@ -30,11 +30,6 @@ export default async function AIToolsPage() {
               <Link className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-medium text-white" href="/messages/new">
                 Start AI conversation
               </Link>
-              {process.env.NODE_ENV !== "production" ? (
-                <Link className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-medium text-white" href="/companions">
-                  Open Companion Studio prototype
-                </Link>
-              ) : null}
             </div>
           </section>
           <section className="p-5">

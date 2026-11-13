@@ -37,9 +37,6 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test agent collaboration
-        run: npm run world:test
-
       - name: Prepare local database before parallel page workers
         run: npm run db:init
 

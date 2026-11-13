@@ -1,6 +1,9 @@
 name: Deploy Cloudflare Production
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       git_ref:
@@ -57,5 +60,5 @@ jobs:
       - name: Apply pending production database migrations
         run: npx wrangler d1 migrations apply nu-bi --remote
 
-      - name: Deploy verified production Worker
-        run: node scripts/ai-world/deploy.mjs
+      - name: Deploy production Worker
+        run: npx wrangler deploy

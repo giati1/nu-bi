@@ -3,7 +3,6 @@
 .worker-next
 .wrangler
 node_modules
-.ai-world/
 dist
 coverage
 .vercel

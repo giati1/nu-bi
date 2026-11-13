@@ -5,16 +5,6 @@
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  "routes": [
-    {
-      "pattern": "nu-bi.com/*",
-      "zone_name": "nu-bi.com"
-    },
-    {
-      "pattern": "www.nu-bi.com/*",
-      "zone_name": "nu-bi.com"
-    }
-  ],
   "assets": {
     "directory": ".worker-next/assets",
     "binding": "ASSETS"
@@ -23,6 +13,8 @@
     "NODE_ENV": "production",
     "CLOUDFLARE_ENV": "production",
     "NEXT_PUBLIC_APP_URL": "https://nu-bi.com",
+    "GOOGLE_CLIENT_ID": "273717790286-cs5jcma04nthbrai7edgcaii736mq1ob.apps.googleusercontent.com",
+    "GOOGLE_REDIRECT_URI": "https://nu-bi.com/api/auth/google/callback",
     "DATABASE_DRIVER": "d1",
     "STORAGE_DRIVER": "r2",
     "NEXT_PUBLIC_MEDIA_BASE_PATH": "/api/media",
