@@ -5,7 +5,7 @@ import { HomeAIToolsPanel } from "@/components/home-ai-tools-panel";
 import { HomeStoriesPanel } from "@/components/home-stories-panel";
 import { MoodFeedPanel } from "@/components/mood-feed-panel";
 import { Avatar } from "@/components/avatar";
-import { requirePageViewer } from "@/lib/auth/session";
+import { getViewer } from "@/lib/auth/session";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { getProfileHref, resolveStoryDestinationPath } from "@/lib/identity";
 import {
@@ -17,30 +17,35 @@ import {
 } from "@/lib/db/repository";
 
 export default async function HomePage() {
-  const viewer = await requirePageViewer("/home");
-  const canDeleteAnyPost = isInternalAdminUsername(viewer.username);
+  const viewer = await getViewer();
+  const viewerId = viewer?.id ?? "";
+  const canDeleteAnyPost = viewer ? isInternalAdminUsername(viewer.username) : false;
 
   const [feed, conversations, suggestions, tags, stories] = await Promise.all([
-    getHomeFeed(viewer.id),
-    getConversationSummaries(viewer.id),
-    getSuggestedUsers(viewer.id),
+    getHomeFeed(viewerId),
+    viewer ? getConversationSummaries(viewer.id) : Promise.resolve([]),
+    getSuggestedUsers(viewerId),
     getTrendingTags(),
-    getActiveStories(viewer.id)
+    getActiveStories(viewerId)
   ]);
 
   const fallbackStoryItems = [
-    {
-      id: `viewer-${viewer.id}`,
-      type: "storyAction" as const,
-      label: "Your story",
-      href: "/creator",
-      imageUrl: viewer.avatarUrl,
-      action: true,
-      status: "your-story" as const,
-      meta: "Post",
-      body: "Post a quick update, tease a drop, or share something worth pinning.",
-      ctaLabel: "Create story"
-    },
+    ...(viewer
+      ? [
+          {
+            id: `viewer-${viewer.id}`,
+            type: "storyAction" as const,
+            label: "Your story",
+            href: "/creator",
+            imageUrl: viewer.avatarUrl,
+            action: true,
+            status: "your-story" as const,
+            meta: "Post",
+            body: "Post a quick update, tease a drop, or share something worth pinning.",
+            ctaLabel: "Create story"
+          }
+        ]
+      : []),
     ...suggestions.slice(0, 4).map((user) => {
       const profileHref = getProfileHref(user.username);
       const existingConversation = conversations.find((conversation) => conversation.counterpart.id === user.id);
@@ -88,7 +93,7 @@ export default async function HomePage() {
           }) ?? undefined,
         imageUrl: story.mediaUrl ?? story.author.avatarUrl,
         status:
-          story.author.id === viewer.id
+          story.author.id === viewerId
             ? ("your-story" as const)
             : story.viewerHasSeen
               ? ("seen" as const)
@@ -96,7 +101,7 @@ export default async function HomePage() {
               ? ("new" as const)
               : ("seen" as const),
         meta:
-          story.author.id === viewer.id
+          story.author.id === viewerId
             ? "Your update"
             : story.viewerHasSeen
               ? "Seen"
@@ -105,7 +110,7 @@ export default async function HomePage() {
                 : "Recent",
         body: story.body,
         ctaLabel:
-          story.author.id === viewer.id
+          story.author.id === viewerId
             ? story.destinationLabel ?? "Manage story"
             : story.destinationLabel ?? "Open story"
       }))
@@ -245,15 +250,15 @@ export default async function HomePage() {
         </div>
         <Link
           className="rounded-2xl border border-accent/35 bg-[linear-gradient(180deg,#f87171,#ef4444)] px-4 py-3 text-sm font-medium text-white"
-          href="/creator"
+          href={viewer ? "/creator" : "/login?next=%2Fcreator"}
         >
-          Create post
+          {viewer ? "Create post" : "Join Arena to post"}
         </Link>
       </section>
       <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
         <Link
           className="rounded-[26px] border border-accent/35 bg-[linear-gradient(180deg,rgba(248,113,113,0.22),rgba(239,68,68,0.12))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(127,29,29,0.18)] transition hover:border-accent/55 hover:bg-[linear-gradient(180deg,rgba(248,113,113,0.28),rgba(239,68,68,0.16))]"
-          href="/ai-tools"
+          href={viewer ? "/ai-tools" : "/login?next=%2Fai-tools"}
         >
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">AI Tools</p>
           <h2 className="mt-2 text-2xl font-semibold">Open AI tools</h2>
@@ -276,7 +281,7 @@ export default async function HomePage() {
           canDeleteAnyPost={canDeleteAnyPost}
           feed={feed}
           presence={[]}
-          viewerId={viewer.id}
+          viewerId={viewerId}
         />
       )}
     </AppShell>

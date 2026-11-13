@@ -3,6 +3,7 @@
 import { Mic, Paperclip, Square, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useAuthModal } from "@/components/auth-modal";
 import { MicrophoneLevel } from "@/components/microphone-level";
 import { useMicrophoneLevel } from "@/hooks/use-microphone-level";
 
@@ -18,6 +19,7 @@ export function MessageComposer({
   onClearReply?: () => void;
 }) {
   const router = useRouter();
+  const { isAuthenticated, openAuthModal } = useAuthModal();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -45,6 +47,10 @@ export function MessageComposer({
       className="panel-soft edge-light rounded-[30px] p-4"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!isAuthenticated) {
+          openAuthModal("Sign in to send a direct message.");
+          return;
+        }
         startTransition(async () => {
           setError(null);
           let media: Array<{ storageKey: string; url: string; mimeType: string | null }> = [];
@@ -222,6 +228,11 @@ export function MessageComposer({
       <div className="flex gap-3">
         <textarea
           className="min-h-24 flex-1 rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-white outline-none transition focus:border-accent"
+          onFocus={() => {
+            if (!isAuthenticated) {
+              openAuthModal("Sign in to send a direct message.");
+            }
+          }}
           onChange={(event) => {
             const nextValue = event.target.value;
             setBody(nextValue);

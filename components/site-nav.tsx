@@ -4,11 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useState } from "react";
-import { Bell, Bookmark, Clapperboard, Compass, House, LogOut, Menu, MessageCircle, Plus, Search, Sparkles, UserRoundCog, X } from "lucide-react";
+import { Bell, Bookmark, Clapperboard, Compass, House, LogIn, LogOut, Menu, MessageCircle, Plus, Search, Sparkles, UserRoundCog, X } from "lucide-react";
 import { ActivityAlerts, type ActivityToast } from "@/components/activity-alerts";
+import { useAuthModal } from "@/components/auth-modal";
 import { BrandMark } from "@/components/brand-mark";
 import { QuickUploadSheet } from "@/components/quick-upload-sheet";
 import { cn } from "@/lib/utils";
+
+const authOnlyPaths = new Set([
+  "/creator",
+  "/messages",
+  "/notifications",
+  "/settings/profile",
+  "/saved",
+  "/ai-tools"
+]);
 
 const desktopLinks = [
   { href: "/home", label: "Home", icon: House },
@@ -38,6 +48,7 @@ const mobileMoreLinks = [
 
 export function SiteNav() {
   const pathname = usePathname();
+  const { isAuthenticated, openAuthModal, requireAuthAction } = useAuthModal();
   const [moreOpen, setMoreOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [alerts, setAlerts] = useState<ActivityToast[]>([]);
@@ -56,7 +67,7 @@ export function SiteNav() {
           <BrandMark compact />
           <button
             className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-accent/35 bg-[linear-gradient(180deg,#f87171,#ef4444)] px-4 py-3 text-sm font-semibold text-white"
-            onClick={() => setUploadOpen(true)}
+            onClick={() => requireAuthAction(() => setUploadOpen(true), "Sign in to create a post or drop a story in the arena.")}
             type="button"
           >
             <Plus className="h-4 w-4" />
@@ -84,6 +95,12 @@ export function SiteNav() {
                 )}
                 href={href}
                 key={href}
+                onClick={(event) => {
+                  if (!isAuthenticated && authOnlyPaths.has(href)) {
+                    event.preventDefault();
+                    openAuthModal(`Sign in to open ${label.toLowerCase()}.`, href);
+                  }
+                }}
               >
                 <div className={cn("rounded-2xl p-2", active ? "bg-black/12" : "bg-white/[0.04]")}>
                   <Icon className="h-4 w-4" />
@@ -106,6 +123,12 @@ export function SiteNav() {
                 )}
                 href={href}
                 key={href}
+                onClick={(event) => {
+                  if (!isAuthenticated && authOnlyPaths.has(href)) {
+                    event.preventDefault();
+                    openAuthModal(`Sign in to open ${label.toLowerCase()}.`, href);
+                  }
+                }}
               >
                 <div className={cn("rounded-2xl p-2", active ? "bg-black/12" : "bg-white/[0.04]")}>
                   <Icon className="h-4 w-4" />
@@ -114,19 +137,32 @@ export function SiteNav() {
               </Link>
             );
           })}
-          <button
-            className="mt-2 flex w-full items-center gap-3 rounded-[22px] border border-transparent px-4 py-3 text-sm text-white/72 transition hover:border-accent/25 hover:bg-accent/10 hover:text-white"
-            onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST" });
-              window.location.href = "/login";
-            }}
-            type="button"
-          >
-            <div className="rounded-2xl bg-white/[0.04] p-2">
-              <LogOut className="h-4 w-4" />
-            </div>
-            Log out
-          </button>
+          {isAuthenticated ? (
+            <button
+              className="mt-2 flex w-full items-center gap-3 rounded-[22px] border border-transparent px-4 py-3 text-sm text-white/72 transition hover:border-accent/25 hover:bg-accent/10 hover:text-white"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                window.location.href = "/login";
+              }}
+              type="button"
+            >
+              <div className="rounded-2xl bg-white/[0.04] p-2">
+                <LogOut className="h-4 w-4" />
+              </div>
+              Log out
+            </button>
+          ) : (
+            <button
+              className="mt-2 flex w-full items-center gap-3 rounded-[22px] border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-medium text-white transition hover:border-accent/55 hover:bg-accent/20"
+              onClick={() => openAuthModal("Sign in to join the arena, post, reply, and message.")}
+              type="button"
+            >
+              <div className="rounded-2xl bg-white/[0.08] p-2">
+                <LogIn className="h-4 w-4 text-accent-soft" />
+              </div>
+              Sign in / Join
+            </button>
+          )}
         </div>
       </nav>
 
@@ -137,7 +173,7 @@ export function SiteNav() {
             <MobileNavLink active={pathname === "/shorts" || pathname.startsWith("/shorts/")} href="/shorts" icon={Clapperboard} label="Shorts" />
             <button
               className="flex flex-col items-center justify-center gap-1 rounded-[18px] border border-accent/35 bg-[linear-gradient(180deg,#f87171,#ef4444)] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white"
-              onClick={() => setUploadOpen(true)}
+              onClick={() => requireAuthAction(() => setUploadOpen(true), "Sign in to create a post or story.")}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -149,6 +185,12 @@ export function SiteNav() {
               href="/messages"
               icon={MessageCircle}
               label="Inbox"
+              onClick={(event) => {
+                if (!isAuthenticated) {
+                  event.preventDefault();
+                  openAuthModal("Sign in to view and send direct messages.", "/messages");
+                }
+              }}
             />
             <button
               className={cn(
@@ -168,6 +210,11 @@ export function SiteNav() {
 
       <QuickUploadSheet onClose={() => setUploadOpen(false)} open={uploadOpen} />
       <MobileMoreSheet
+        isAuthenticated={isAuthenticated}
+        onRequireAuth={(label, href) => {
+          setMoreOpen(false);
+          openAuthModal(`Sign in to open ${label.toLowerCase()}.`, href);
+        }}
         open={moreOpen}
         pathname={pathname}
         unreadNotificationCount={unreadNotificationCount}
@@ -182,13 +229,15 @@ function MobileNavLink({
   icon: Icon,
   label,
   active,
-  badgeCount = 0
+  badgeCount = 0,
+  onClick
 }: {
   href: string;
   icon: ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
   badgeCount?: number;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <Link
@@ -199,6 +248,7 @@ function MobileNavLink({
           : "border-transparent text-white/80 hover:border-accent/25 hover:bg-accent/10 hover:text-white"
       )}
       href={href}
+      onClick={onClick}
     >
       {badgeCount > 0 ? <MobileDot /> : null}
       <Icon className="h-4 w-4" />
@@ -211,12 +261,16 @@ function MobileMoreSheet({
   open,
   onClose,
   pathname,
-  unreadNotificationCount
+  unreadNotificationCount,
+  isAuthenticated,
+  onRequireAuth
 }: {
   open: boolean;
   onClose: () => void;
   pathname: string;
   unreadNotificationCount: number;
+  isAuthenticated: boolean;
+  onRequireAuth: (label: string, href: string) => void;
 }) {
   return (
     <div
@@ -270,7 +324,14 @@ function MobileMoreSheet({
                   )}
                   href={href}
                   key={href}
-                  onClick={onClose}
+                  onClick={(event) => {
+                    if (!isAuthenticated && authOnlyPaths.has(href)) {
+                      event.preventDefault();
+                      onRequireAuth(label, href);
+                      return;
+                    }
+                    onClose();
+                  }}
                 >
                   <div className={cn("rounded-2xl p-3", active ? "bg-black/12" : "bg-white/5")}>
                     <Icon className="h-4 w-4" />
@@ -283,21 +344,36 @@ function MobileMoreSheet({
           </div>
 
           <div className="mt-4 rounded-[24px] border border-white/10 bg-white/[0.02] p-2">
-            <button
-              className="flex w-full items-center gap-4 rounded-[20px] px-4 py-4 text-left text-white/90 transition hover:bg-white/5"
-              onClick={async () => {
-                await fetch("/api/auth/logout", { method: "POST" });
-                window.location.href = "/login";
-              }}
-              type="button"
-            >
-              <div className="rounded-2xl bg-white/5 p-3">
-                <LogOut className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-medium">Log out</p>
-              </div>
-            </button>
+            {isAuthenticated ? (
+              <button
+                className="flex w-full items-center gap-4 rounded-[20px] px-4 py-4 text-left text-white/90 transition hover:bg-white/5"
+                onClick={async () => {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                  window.location.href = "/login";
+                }}
+                type="button"
+              >
+                <div className="rounded-2xl bg-white/5 p-3">
+                  <LogOut className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-medium">Log out</p>
+                </div>
+              </button>
+            ) : (
+              <button
+                className="flex w-full items-center gap-4 rounded-[20px] px-4 py-4 text-left text-white/90 transition hover:bg-white/5"
+                onClick={() => onRequireAuth("Sign in", pathname)}
+                type="button"
+              >
+                <div className="rounded-2xl bg-white/5 p-3">
+                  <LogIn className="h-4 w-4 text-accent-soft" />
+                </div>
+                <div>
+                  <p className="font-medium">Sign in / Join</p>
+                </div>
+              </button>
+            )}
           </div>
   
           <div className="h-2 shrink-0" />

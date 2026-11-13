@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Avatar } from "@/components/avatar";
 import { AdminEngagementControls } from "@/components/admin-engagement-controls";
+import { useAuthModal } from "@/components/auth-modal";
 import { FeedVideo } from "@/components/feed-video";
 import { PostViewTracker } from "@/components/post-view-tracker";
 import { QuoteRepostButton } from "@/components/quote-repost-button";
@@ -27,6 +28,7 @@ export function PostCard({
   allowEngagementOverride?: boolean;
 }) {
   const router = useRouter();
+  const { requireAuthAction } = useAuthModal();
   const [pending, startTransition] = useTransition();
   const [viewCount, setViewCount] = useState(post.viewCount);
   const [failedMediaIds, setFailedMediaIds] = useState<string[]>([]);
@@ -74,7 +76,7 @@ export function PostCard({
           </div>
         )}
         <div className="flex shrink-0 gap-2">
-          {post.author.id === viewerId ? (
+          {Boolean(viewerId) && post.author.id === viewerId ? (
             <Link
               className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/70 hover:bg-white/5"
               href={`/post/${post.id}/edit`}
@@ -85,17 +87,19 @@ export function PostCard({
           <button
             className="rounded-full border border-white/10 p-2 text-white/60 hover:text-white"
             onClick={() =>
-              startTransition(async () => {
-                await fetch("/api/reports", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    targetPostId: post.id,
-                    reason: "user_report",
-                    details: "Reported from post card"
-                  })
+              requireAuthAction(() => {
+                startTransition(async () => {
+                  await fetch("/api/reports", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      targetPostId: post.id,
+                      reason: "user_report",
+                      details: "Reported from post card"
+                    })
+                  });
                 });
-              })
+              }, "Sign in to report posts.")
             }
             type="button"
           >
@@ -168,14 +172,16 @@ export function PostCard({
                   key={option.id}
                   onClick={(event) => {
                     event.preventDefault();
-                    startTransition(async () => {
-                      await fetch("/api/polls/vote", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ optionId: option.id })
+                    requireAuthAction(() => {
+                      startTransition(async () => {
+                        await fetch("/api/polls/vote", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ optionId: option.id })
+                        });
+                        router.refresh();
                       });
-                      router.refresh();
-                    });
+                    }, "Sign in to vote in polls.");
                   }}
                   type="button"
                 >
@@ -259,19 +265,31 @@ export function PostCard({
           icon={<Heart className="h-4 w-4" />}
           label="Like"
           onClick={() =>
-            startTransition(async () => {
-              await fetch("/api/likes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ postId: post.id, viewerId })
+            requireAuthAction(() => {
+              startTransition(async () => {
+                await fetch("/api/likes", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ postId: post.id, viewerId })
+                });
+                router.refresh();
               });
-              router.refresh();
-            })
+            }, "Sign in to like posts in the arena.")
           }
         />
         <Link
           className="rounded-full border border-white/10 px-4 py-2 text-white/70 hover:bg-white/5"
           href={`/post/${post.id}`}
+          onClick={(event) => {
+            if (!viewerId) {
+              event.preventDefault();
+              requireAuthAction(
+                () => router.push(`/post/${post.id}`),
+                "Sign in to reply and join the debate on this post.",
+                `/post/${post.id}`
+              );
+            }
+          }}
         >
           <span className="inline-flex items-center gap-2">
             <MessageCircle className="h-4 w-4" />
@@ -285,14 +303,16 @@ export function PostCard({
           )}
           disabled={pending}
           onClick={() =>
-            startTransition(async () => {
-              await fetch("/api/saved", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ postId: post.id })
+            requireAuthAction(() => {
+              startTransition(async () => {
+                await fetch("/api/saved", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ postId: post.id })
+                });
+                router.refresh();
               });
-              router.refresh();
-            })
+            }, "Sign in to bookmark posts.")
           }
           type="button"
         >
@@ -308,14 +328,16 @@ export function PostCard({
           )}
           disabled={pending}
           onClick={() =>
-            startTransition(async () => {
-              await fetch("/api/reposts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ postId: post.id })
+            requireAuthAction(() => {
+              startTransition(async () => {
+                await fetch("/api/reposts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ postId: post.id })
+                });
+                router.refresh();
               });
-              router.refresh();
-            })
+            }, "Sign in to repost to your feed.")
           }
           type="button"
         >

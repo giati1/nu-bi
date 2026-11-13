@@ -1,13 +1,13 @@
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { ShortsFeed } from "@/components/shorts-feed";
-import { requirePageViewer } from "@/lib/auth/session";
+import { getViewer } from "@/lib/auth/session";
 import { getShortsFeed } from "@/lib/db/repository";
 
 export default async function ShortsPage() {
-  const viewer = await requirePageViewer("/shorts");
+  const viewer = await getViewer();
 
-  const shorts = await getShortsFeed(viewer.id);
+  const shorts = await getShortsFeed(viewer?.id ?? "");
 
   return (
     <AppShell

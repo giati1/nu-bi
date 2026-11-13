@@ -2,11 +2,13 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthModal } from "@/components/auth-modal";
 
 const suggested = ["ai", "design", "founders", "gaming", "fashion", "music", "sports", "finance"];
 
 export function InterestPicker({ active }: { active: string[] }) {
   const router = useRouter();
+  const { requireAuthAction } = useAuthModal();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -19,14 +21,16 @@ export function InterestPicker({ active }: { active: string[] }) {
             disabled={pending}
             key={interest}
             onClick={() =>
-              startTransition(async () => {
-                await fetch("/api/interests", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ interest, enabled: !enabled })
+              requireAuthAction(() => {
+                startTransition(async () => {
+                  await fetch("/api/interests", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ interest, enabled: !enabled })
+                  });
+                  router.refresh();
                 });
-                router.refresh();
-              })
+              }, "Sign in to customize your arena interests.")
             }
             type="button"
           >

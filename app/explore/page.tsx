@@ -4,19 +4,20 @@ import { Avatar } from "@/components/avatar";
 import { InterestPicker } from "@/components/interest-picker";
 import { PostCard } from "@/components/post-card";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
-import { requirePageViewer } from "@/lib/auth/session";
+import { getViewer } from "@/lib/auth/session";
 import { getProfileHref } from "@/lib/identity";
 import { getDiscoveryFeed, getSuggestedUsers, getTrendingTags, getUserInterests } from "@/lib/db/repository";
 
 export default async function ExplorePage() {
-  const viewer = await requirePageViewer("/explore");
-  const canDeleteAnyPost = isInternalAdminUsername(viewer.username);
+  const viewer = await getViewer();
+  const viewerId = viewer?.id ?? "";
+  const canDeleteAnyPost = viewer ? isInternalAdminUsername(viewer.username) : false;
 
   const [posts, suggestions, tags, interests] = await Promise.all([
-    getDiscoveryFeed(viewer.id),
-    getSuggestedUsers(viewer.id),
+    getDiscoveryFeed(viewerId),
+    getSuggestedUsers(viewerId),
     getTrendingTags(),
-    getUserInterests(viewer.id)
+    viewer ? getUserInterests(viewer.id) : Promise.resolve([])
   ]);
 
   return (
@@ -79,8 +80,8 @@ export default async function ExplorePage() {
         <PostCard
           key={post.id}
           post={post}
-          viewerId={viewer.id}
-          allowDelete={canDeleteAnyPost || post.author.id === viewer.id}
+          viewerId={viewerId}
+          allowDelete={canDeleteAnyPost || (Boolean(viewerId) && post.author.id === viewerId)}
           allowEngagementOverride={canDeleteAnyPost}
         />
       ))}

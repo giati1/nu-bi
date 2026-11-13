@@ -40,7 +40,7 @@ export default async function ProfilePage({
               </div>
             </section>
           ) : null}
-          {!isSelf && canEngage && profile.canViewContent ? (
+          {!isSelf && profile.canViewContent ? (
             <section className="p-5">
               <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Start chat</p>
               <div className="mt-4">
@@ -96,15 +96,11 @@ export default async function ProfilePage({
                 <Link className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black" href="/settings/profile">
                   Edit profile
                 </Link>
-              ) : canEngage ? (
+              ) : (
                 <>
                   <FollowButton initialFollowing={profile.user.isFollowing} userId={profile.user.id} />
-                  <RelationshipActions targetUserId={profile.user.id} />
+                  {canEngage ? <RelationshipActions targetUserId={profile.user.id} /> : null}
                 </>
-              ) : (
-                <Link className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black" href="/login">
-                  Log in to follow
-                </Link>
               )}
             </div>
           </div>
@@ -146,7 +142,7 @@ export default async function ProfilePage({
           />
         </section>
       ) : null}
-      {!isSelf && canEngage && profile.canViewContent ? (
+      {!isSelf && profile.canViewContent ? (
         <section className="glass-panel rounded-[28px] p-5 lg:hidden">
           <p className="text-sm uppercase tracking-[0.22em] text-accent-soft">Start chat</p>
           <div className="mt-4">

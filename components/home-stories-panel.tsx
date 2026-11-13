@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { useAuthModal } from "@/components/auth-modal";
 import { QuickUploadSheet } from "@/components/quick-upload-sheet";
 import { StoryHighlightRow } from "@/components/story-highlight-row";
 
@@ -38,6 +39,7 @@ export function HomeStoriesPanel({
   highlights: HighlightItem[];
 }) {
   const [storyUploadOpen, setStoryUploadOpen] = useState(false);
+  const { requireAuthAction } = useAuthModal();
 
   return (
     <>
@@ -50,7 +52,7 @@ export function HomeStoriesPanel({
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <button
               className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-accent/90"
-              onClick={() => setStoryUploadOpen(true)}
+              onClick={() => requireAuthAction(() => setStoryUploadOpen(true), "Sign in to share a story.")}
               type="button"
             >
               <Plus className="h-3.5 w-3.5 text-white" />

@@ -3,6 +3,7 @@
 import { Repeat2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { useAuthModal } from "@/components/auth-modal";
 
 type QuoteRepostButtonProps = {
   postId: string;
@@ -18,6 +19,7 @@ export function QuoteRepostButton({
   repostedBody
 }: QuoteRepostButtonProps) {
   const router = useRouter();
+  const { requireAuthAction } = useAuthModal();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function QuoteRepostButton({
     <>
       <button
         className="rounded-full border border-white/10 px-4 py-2 text-white/70 hover:bg-white/5"
-        onClick={() => setOpen(true)}
+        onClick={() => requireAuthAction(() => setOpen(true), "Sign in to quote repost.")}
         type="button"
       >
         <span className="inline-flex items-center gap-2">

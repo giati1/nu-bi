@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { dispatchNewPostToLocalAI } from "@/lib/ai-agents/arena-dispatcher";
 import { requireViewer } from "@/lib/auth/session";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { createPost, deletePost } from "@/lib/db/repository";
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
       media: parsed.media,
       pollOptions: parsed.pollOptions
     });
+    dispatchNewPostToLocalAI(post);
     return NextResponse.json({ post });
   } catch (error) {
     return NextResponse.json(

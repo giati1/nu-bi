@@ -39,6 +39,7 @@ export const env = {
   aiAgentAdminUsernames: parseCsv(process.env.AI_AGENT_ADMIN_USERNAMES ?? "nubi"),
   aiAgentSchedulerSecret: process.env.AI_AGENT_SCHEDULER_SECRET ?? "",
   localAgentSecret: process.env.LOCAL_AGENT_SECRET ?? "",
+  localAiEndpoint: process.env.LOCAL_AI_ENDPOINT ?? "",
   autoPostEnabled,
   autoPostCron: process.env.AUTO_POST_CRON ?? "0 14 * * *",
   autoPostFrequency: process.env.AUTO_POST_FREQUENCY ?? "daily",

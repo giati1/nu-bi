@@ -3,6 +3,7 @@
 import { Mic, Paperclip, Sparkles, Square, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useAuthModal } from "@/components/auth-modal";
 import { MicrophoneLevel } from "@/components/microphone-level";
 import { useMicrophoneLevel } from "@/hooks/use-microphone-level";
 
@@ -14,6 +15,7 @@ type UploadedMedia = {
 
 export function CommentComposer({ postId }: { postId: string }) {
   const router = useRouter();
+  const { isAuthenticated, openAuthModal } = useAuthModal();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -37,6 +39,10 @@ export function CommentComposer({ postId }: { postId: string }) {
       className="glass-panel rounded-[28px] p-4"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!isAuthenticated) {
+          openAuthModal("Sign in to reply and join the debate on this post.", `/post/${postId}`);
+          return;
+        }
 
         startTransition(async () => {
           setError(null);
@@ -124,7 +130,11 @@ export function CommentComposer({ postId }: { postId: string }) {
           <button
             className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/75 hover:bg-white/5"
             disabled={aiPending}
-            onClick={() =>
+            onClick={() => {
+              if (!isAuthenticated) {
+                openAuthModal("Sign in to draft an AI reply.", `/post/${postId}`);
+                return;
+              }
               startAITransition(async () => {
                 const response = await fetch("/api/ai/reply", {
                   method: "POST",
@@ -135,8 +145,8 @@ export function CommentComposer({ postId }: { postId: string }) {
                 if (response.ok) {
                   setBody(payload.reply);
                 }
-              })
-            }
+              });
+            }}
             type="button"
           >
             <Sparkles className="h-3.5 w-3.5 text-accent-soft" />
@@ -145,6 +155,10 @@ export function CommentComposer({ postId }: { postId: string }) {
           <button
             className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/75 hover:bg-white/5"
             onClick={async () => {
+              if (!isAuthenticated) {
+                openAuthModal("Sign in to leave a voice comment.", `/post/${postId}`);
+                return;
+              }
               if (recordingVoice) {
                 recorderRef.current?.stop();
                 return;
@@ -204,6 +218,11 @@ export function CommentComposer({ postId }: { postId: string }) {
         <textarea
           className="min-h-24 flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none focus:border-accent"
           onChange={(event) => setBody(event.target.value)}
+          onFocus={() => {
+            if (!isAuthenticated) {
+              openAuthModal("Sign in to reply and join the debate on this post.", `/post/${postId}`);
+            }
+          }}
           placeholder="Add a comment or leave text blank and send a voice note..."
           value={body}
         />

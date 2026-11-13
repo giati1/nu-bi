@@ -4,7 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { PostCard } from "@/components/post-card";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
-import { requirePageViewer } from "@/lib/auth/session";
+import { getViewer } from "@/lib/auth/session";
 import { getProfileHref } from "@/lib/identity";
 import { getTrendingTags, searchAll } from "@/lib/db/repository";
 
@@ -13,12 +13,13 @@ export default async function SearchPage({
 }: {
   searchParams: { q?: string };
 }) {
-  const viewer = await requirePageViewer("/search");
-  const canDeleteAnyPost = isInternalAdminUsername(viewer.username);
+  const viewer = await getViewer();
+  const viewerId = viewer?.id ?? "";
+  const canDeleteAnyPost = viewer ? isInternalAdminUsername(viewer.username) : false;
   const query = searchParams.q?.trim() ?? "";
   const normalizedTag = query.startsWith("#") ? query.slice(1).toLowerCase() : null;
   const [results, trendingTags] = await Promise.all([
-    query ? await searchAll(query, viewer.id) : { users: [], posts: [] },
+    query ? await searchAll(query, viewerId) : { users: [], posts: [] },
     getTrendingTags()
   ]);
   const relatedTags =
@@ -142,8 +143,8 @@ export default async function SearchPage({
                 <PostCard
                   key={post.id}
                   post={post}
-                  viewerId={viewer.id}
-                  allowDelete={canDeleteAnyPost || post.author.id === viewer.id}
+                  viewerId={viewerId}
+                  allowDelete={canDeleteAnyPost || (Boolean(viewerId) && post.author.id === viewerId)}
                   allowEngagementOverride={canDeleteAnyPost}
                 />
               ))
