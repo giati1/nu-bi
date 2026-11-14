@@ -1,10 +1,12 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useAuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/avatar";
 import { CommentComposer, type ReplyTarget } from "@/components/comment-composer";
+import { getPersonaBadgeMeta } from "@/components/post-card";
+import { cn } from "@/lib/utils";
 import type { CommentRecord } from "@/types/domain";
 
 export function PostThreadComments({
@@ -26,7 +28,7 @@ export function PostThreadComments({
       />
       <section className="space-y-4">
         {comments.map((comment) => {
-          const isNovaPersona = comment.author.username.toLowerCase().startsWith("nova_");
+          const personaBadge = getPersonaBadgeMeta(comment.author.username);
           return (
             <article
               className="glass-panel rounded-[28px] p-5"
@@ -36,16 +38,22 @@ export function PostThreadComments({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar
-                    className="h-11 w-11"
+                    className="h-11 w-11 ring-2 ring-white/10"
                     name={comment.author.displayName}
                     src={comment.author.avatarUrl}
                   />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{comment.author.displayName}</p>
-                      {isNovaPersona ? (
-                        <span className="rounded-full border border-accent/35 bg-accent/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-soft">
-                          AI Persona
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-white">{comment.author.displayName}</p>
+                      {personaBadge ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                            personaBadge.className
+                          )}
+                        >
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {personaBadge.label}
                         </span>
                       ) : null}
                     </div>

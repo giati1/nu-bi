@@ -74,6 +74,14 @@ export type FeedPost = {
         body: string;
       }
     | null;
+  previewComments?: Array<{
+    id: string;
+    body: string;
+    createdAt: string;
+    authorUsername: string;
+    authorDisplayName: string;
+    authorAvatarUrl: string | null;
+  }>;
 };
 
 export type ProfilePageData = {

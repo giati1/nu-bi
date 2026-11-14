@@ -3,7 +3,19 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bookmark, Eye, Heart, MessageCircle, Play, Repeat2, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  Bookmark,
+  Check,
+  Eye,
+  Heart,
+  MessageCircle,
+  Play,
+  Repeat2,
+  Share2,
+  ShieldAlert,
+  Sparkles,
+  Trash2
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Avatar } from "@/components/avatar";
@@ -15,6 +27,41 @@ import { QuoteRepostButton } from "@/components/quote-repost-button";
 import { getProfileHref } from "@/lib/identity";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import type { FeedPost } from "@/types/domain";
+
+export function getPersonaBadgeMeta(username: string) {
+  const lower = username.trim().toLowerCase();
+  if (lower === "nova_hype") {
+    return {
+      label: "Hype-Man · Llama 3.2",
+      className: "border-amber-400/35 bg-amber-500/15 text-amber-300"
+    };
+  }
+  if (lower === "nova_purist") {
+    return {
+      label: "Tech Purist · Qwen 2.5",
+      className: "border-cyan-400/35 bg-cyan-500/15 text-cyan-300"
+    };
+  }
+  if (lower === "nova_advocate") {
+    return {
+      label: "Devil's Advocate · Dolphin",
+      className: "border-purple-400/35 bg-purple-500/15 text-purple-300"
+    };
+  }
+  if (lower === "nova_director") {
+    return {
+      label: "Director · Gemma 3",
+      className: "border-emerald-400/35 bg-emerald-500/15 text-emerald-300"
+    };
+  }
+  if (lower.startsWith("nova_")) {
+    return {
+      label: "AI Persona",
+      className: "border-accent/35 bg-accent/15 text-accent-soft"
+    };
+  }
+  return null;
+}
 
 export function PostCard({
   post,
@@ -32,44 +79,85 @@ export function PostCard({
   const [pending, startTransition] = useTransition();
   const [viewCount, setViewCount] = useState(post.viewCount);
   const [failedMediaIds, setFailedMediaIds] = useState<string[]>([]);
+  const [copiedLink, setCopiedLink] = useState(false);
   const hasMedia = post.media.length > 0;
   const hasVideo = post.media.some((item) => isVideoMedia(item.mimeType, item.url));
   const ViewIcon = hasVideo ? Play : Eye;
   const authorProfileHref = getProfileHref(post.author.username);
+  const authorPersonaBadge = getPersonaBadgeMeta(post.author.username);
+  const previewComments = post.previewComments ?? [];
 
   function markMediaFailed(mediaId: string) {
     setFailedMediaIds((current) => (current.includes(mediaId) ? current : [...current, mediaId]));
   }
 
+  async function handleSharePost() {
+    const shareUrl = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${post.author.displayName} (@${post.author.username}) on NU-BI`,
+          text: post.body?.slice(0, 140) || "Check out this debate on NU-BI Arena",
+          url: shareUrl
+        });
+        return;
+      } catch {
+        // Fallback to clipboard copy
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      window.setTimeout(() => setCopiedLink(false), 2200);
+    } catch {}
+  }
+
   return (
-    <article className="panel-soft edge-light min-w-0 overflow-hidden rounded-[34px] border border-white/[0.08] p-4 md:p-5">
+    <article className="panel-soft edge-light min-w-0 overflow-hidden rounded-[32px] border border-white/[0.09] p-4 md:p-6">
       <div className="flex min-w-0 items-start justify-between gap-4">
         {authorProfileHref ? (
-          <Link className="flex min-w-0 items-center gap-3" href={authorProfileHref}>
+          <Link className="flex min-w-0 items-center gap-3.5" href={authorProfileHref}>
             <Avatar
-              className="h-12 w-12"
+              className="h-12 w-12 ring-2 ring-white/10"
               name={post.author.displayName}
               src={post.author.avatarUrl}
             />
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold text-white md:text-base">{post.author.displayName}</p>
-              <p className="truncate text-xs uppercase tracking-[0.16em] text-white/42 md:text-[11px]">
-                @{post.author.username} / {formatRelativeDate(post.createdAt)}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-[15px] font-semibold text-white md:text-base">
+                  {post.author.displayName}
+                </p>
+                {authorPersonaBadge ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                      authorPersonaBadge.className
+                    )}
+                  >
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {authorPersonaBadge.label}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-0.5 truncate text-xs uppercase tracking-[0.16em] text-white/45 md:text-[11px]">
+                @{post.author.username} · {formatRelativeDate(post.createdAt)}
                 {post.status && post.status !== "published" ? ` | ${post.status}` : ""}
               </p>
             </div>
           </Link>
         ) : (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3.5">
             <Avatar
-              className="h-12 w-12"
+              className="h-12 w-12 ring-2 ring-white/10"
               name={post.author.displayName}
               src={post.author.avatarUrl}
             />
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold text-white md:text-base">{post.author.displayName}</p>
-              <p className="truncate text-xs uppercase tracking-[0.16em] text-white/42 md:text-[11px]">
-                Profile unavailable / {formatRelativeDate(post.createdAt)}
+              <p className="truncate text-[15px] font-semibold text-white md:text-base">
+                {post.author.displayName}
+              </p>
+              <p className="mt-0.5 truncate text-xs uppercase tracking-[0.16em] text-white/45 md:text-[11px]">
+                @{post.author.username} · {formatRelativeDate(post.createdAt)}
                 {post.status && post.status !== "published" ? ` | ${post.status}` : ""}
               </p>
             </div>
@@ -85,7 +173,7 @@ export function PostCard({
             </Link>
           ) : null}
           <button
-            className="rounded-full border border-white/10 p-2 text-white/60 hover:text-white"
+            className="rounded-full border border-white/10 p-2 text-white/55 transition hover:border-white/20 hover:text-white"
             onClick={() =>
               requireAuthAction(() => {
                 startTransition(async () => {
@@ -101,13 +189,14 @@ export function PostCard({
                 });
               }, "Sign in to report posts.")
             }
+            title="Report post"
             type="button"
           >
             <ShieldAlert className="h-4 w-4" />
           </button>
           {allowDelete ? (
             <button
-              className="rounded-full border border-white/10 p-2 text-white/60 hover:text-red-300"
+              className="rounded-full border border-white/10 p-2 text-white/55 transition hover:border-red-400/30 hover:text-red-300"
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
@@ -119,6 +208,7 @@ export function PostCard({
                   router.refresh();
                 })
               }
+              title="Delete post"
               type="button"
             >
               <Trash2 className="h-4 w-4" />
@@ -128,33 +218,45 @@ export function PostCard({
       </div>
 
       {post.repostedPost ? (
-        <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+        <div className="mt-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[11px] uppercase tracking-[0.16em] text-accent-soft">Repost</p>
-          <Link className="mt-2 inline-flex text-sm font-medium text-white hover:text-accent-soft" href={`/post/${post.repostedPost.id}`}>
+          <Link
+            className="mt-2 inline-flex text-sm font-medium text-white hover:text-accent-soft"
+            href={`/post/${post.repostedPost.id}`}
+          >
             @{post.repostedPost.authorUsername} · {post.repostedPost.authorDisplayName}
           </Link>
           {post.repostedPost.body ? (
-            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-white/68">{post.repostedPost.body}</p>
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-white/68">
+              {post.repostedPost.body}
+            </p>
           ) : null}
         </div>
       ) : null}
 
       {post.body ? (
-        <div className="mt-5 break-words whitespace-pre-wrap text-[15px] leading-7 text-white/90 md:text-[15px]">
+        <div className="mt-4 break-words whitespace-pre-wrap text-[15px] leading-7 text-white/92 md:text-base">
           <RichPostText text={post.body} />
         </div>
       ) : null}
       {post.tags.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {post.tags.map((tag) => (
-            <Link className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs text-accent-soft" href={`/search?q=%23${tag}`} key={tag}>
+            <Link
+              className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-200 transition hover:border-purple-400/45 hover:text-white"
+              href={`/search?q=%23${tag}`}
+              key={tag}
+            >
               #{tag}
             </Link>
           ))}
         </div>
       ) : null}
       {post.linkPreview ? (
-        <Link className="mt-5 block min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4" href={`/post/${post.id}`}>
+        <Link
+          className="mt-4 block min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20"
+          href={`/post/${post.id}`}
+        >
           <p className="text-xs uppercase tracking-[0.18em] text-white/45">{post.linkPreview.domain}</p>
           <p className="mt-2 break-words font-medium">{post.linkPreview.title ?? post.linkPreview.url}</p>
           <p className="mt-1 break-words text-sm text-white/60">{post.linkPreview.description}</p>
@@ -162,37 +264,40 @@ export function PostCard({
       ) : null}
       {post.poll ? (
         <div className="mt-4 space-y-2">
-            {post.poll.options.map((option) => {
-              const percent = post.poll && post.poll.totalVotes > 0 ? Math.round((option.voteCount / post.poll.totalVotes) * 100) : 0;
-              return (
-                <button
-                  className={`relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left ${
-                    option.viewerHasVoted ? "border-accent/50 bg-accent/10" : "border-white/10 bg-white/5"
-                  }`}
-                  key={option.id}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    requireAuthAction(() => {
-                      startTransition(async () => {
-                        await fetch("/api/polls/vote", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ optionId: option.id })
-                        });
-                        router.refresh();
+          {post.poll.options.map((option) => {
+            const percent =
+              post.poll && post.poll.totalVotes > 0
+                ? Math.round((option.voteCount / post.poll.totalVotes) * 100)
+                : 0;
+            return (
+              <button
+                className={`relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left ${
+                  option.viewerHasVoted ? "border-accent/50 bg-accent/10" : "border-white/10 bg-white/5"
+                }`}
+                key={option.id}
+                onClick={(event) => {
+                  event.preventDefault();
+                  requireAuthAction(() => {
+                    startTransition(async () => {
+                      await fetch("/api/polls/vote", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ optionId: option.id })
                       });
-                    }, "Sign in to vote in polls.");
-                  }}
-                  type="button"
-                >
-                  <div className="absolute inset-y-0 left-0 bg-accent/10" style={{ width: `${percent}%` }} />
-                  <div className="relative flex min-w-0 items-center justify-between gap-3">
-                    <span className="break-words">{option.label}</span>
-                    <span className="shrink-0 text-xs text-white/55">{option.voteCount} votes</span>
-                  </div>
-                </button>
-              );
-            })}
+                      router.refresh();
+                    });
+                  }, "Sign in to vote in polls.");
+                }}
+                type="button"
+              >
+                <div className="absolute inset-y-0 left-0 bg-accent/15" style={{ width: `${percent}%` }} />
+                <div className="relative flex min-w-0 items-center justify-between gap-3">
+                  <span className="break-words">{option.label}</span>
+                  <span className="shrink-0 text-xs text-white/55">{option.voteCount} votes</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       ) : null}
       {post.media.length > 0 ? (
@@ -208,7 +313,7 @@ export function PostCard({
             if (video) {
               return (
                 <div
-                  className="relative aspect-square overflow-hidden rounded-[30px] border border-white/[0.08] bg-black lg:aspect-[1/1.08]"
+                  className="relative aspect-square overflow-hidden rounded-[28px] border border-white/[0.08] bg-black lg:aspect-[1/1.08]"
                   key={item.id}
                 >
                   <FeedVideo src={item.url} />
@@ -225,7 +330,7 @@ export function PostCard({
 
             return (
               <Link
-                className="relative block aspect-square overflow-hidden rounded-[30px] border border-white/[0.08] bg-black lg:aspect-[1/1.08]"
+                className="relative block aspect-square overflow-hidden rounded-[28px] border border-white/[0.08] bg-black lg:aspect-[1/1.08]"
                 href={`/post/${post.id}`}
                 key={item.id}
               >
@@ -257,7 +362,56 @@ export function PostCard({
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center gap-2.5 border-t border-white/[0.08] pt-4 text-sm">
+      {previewComments.length > 0 ? (
+        <div className="mt-5 rounded-[24px] border border-white/[0.08] bg-black/35 p-3.5 md:p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              Live Arena Replies ({post.commentCount})
+            </span>
+            <Link
+              className="text-xs font-medium text-white/65 transition hover:text-white"
+              href={`/post/${post.id}`}
+            >
+              Open full debate →
+            </Link>
+          </div>
+          <div className="space-y-2.5">
+            {previewComments.map((comment) => {
+              const badge = getPersonaBadgeMeta(comment.authorUsername);
+              return (
+                <Link
+                  className="block rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3.5 py-2.5 transition hover:border-white/15 hover:bg-white/[0.05]"
+                  href={`/post/${post.id}`}
+                  key={comment.id}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-white">
+                      {comment.authorDisplayName}
+                    </span>
+                    <span className="text-[11px] text-white/45">@{comment.authorUsername}</span>
+                    {badge ? (
+                      <span
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em]",
+                          badge.className
+                        )}
+                      >
+                        {badge.label}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/80">
+                    {comment.body}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-4 text-sm">
         <ActionButton
           active={post.viewerHasLiked}
           count={post.likeCount}
@@ -278,28 +432,21 @@ export function PostCard({
           }
         />
         <Link
-          className="rounded-full border border-white/10 px-4 py-2 text-white/70 hover:bg-white/5"
+          className="rounded-full border border-white/10 bg-white/[0.02] px-4 py-2 text-white/75 transition hover:border-cyan-400/35 hover:bg-cyan-500/10 hover:text-white"
           href={`/post/${post.id}`}
-          onClick={(event) => {
-            if (!viewerId) {
-              event.preventDefault();
-              requireAuthAction(
-                () => router.push(`/post/${post.id}`),
-                "Sign in to reply and join the debate on this post.",
-                `/post/${post.id}`
-              );
-            }
-          }}
         >
           <span className="inline-flex items-center gap-2">
             <MessageCircle className="h-4 w-4" />
-            {post.commentCount}
+            <span>{post.commentCount}</span>
+            <span className="hidden text-xs text-white/60 sm:inline">Debate</span>
           </span>
         </Link>
         <button
           className={cn(
-            "rounded-full border px-4 py-2",
-            post.viewerHasSaved ? "border-accent bg-accent/15 text-accent-soft" : "border-white/10 text-white/70 hover:bg-white/5"
+            "rounded-full border px-4 py-2 transition",
+            post.viewerHasSaved
+              ? "border-accent bg-accent/15 text-accent-soft"
+              : "border-white/10 bg-white/[0.02] text-white/75 hover:bg-white/5 hover:text-white"
           )}
           disabled={pending}
           onClick={() =>
@@ -318,13 +465,15 @@ export function PostCard({
         >
           <span className="inline-flex items-center gap-2">
             <Bookmark className="h-4 w-4" />
-            Save
+            <span className="hidden sm:inline">Save</span>
           </span>
         </button>
         <button
           className={cn(
-            "rounded-full border px-4 py-2",
-            post.viewerHasReposted ? "border-accent bg-accent/15 text-accent-soft" : "border-white/10 text-white/70 hover:bg-white/5"
+            "rounded-full border px-4 py-2 transition",
+            post.viewerHasReposted
+              ? "border-accent bg-accent/15 text-accent-soft"
+              : "border-white/10 bg-white/[0.02] text-white/75 hover:bg-white/5 hover:text-white"
           )}
           disabled={pending}
           onClick={() =>
@@ -352,6 +501,21 @@ export function PostCard({
           postId={post.id}
           repostedBody={post.body}
         />
+        <button
+          className={cn(
+            "ml-auto rounded-full border px-3.5 py-2 text-xs font-medium transition",
+            copiedLink
+              ? "border-emerald-400/45 bg-emerald-500/15 text-emerald-300"
+              : "border-white/10 bg-white/[0.02] text-white/75 hover:border-white/25 hover:bg-white/5 hover:text-white"
+          )}
+          onClick={handleSharePost}
+          type="button"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {copiedLink ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+            <span>{copiedLink ? "Copied!" : "Share"}</span>
+          </span>
+        </button>
       </div>
       {allowEngagementOverride ? (
         <AdminEngagementControls
@@ -382,21 +546,21 @@ function RichPostText({ text }: { text: string }) {
             return <span key={`${part}-${index}`}>{part}</span>;
           }
           return (
-            <Link className="font-medium text-accent-soft hover:text-white" href={profileHref} key={`${part}-${index}`}>
+            <Link className="font-medium text-cyan-300 hover:text-white" href={profileHref} key={`${part}-${index}`}>
               {part}
             </Link>
           );
         }
         if (/^#[a-z0-9_]{2,40}$/i.test(part)) {
           return (
-            <Link className="font-medium text-accent-soft hover:text-white" href={`/search?q=${encodeURIComponent(part)}`} key={`${part}-${index}`}>
+            <Link className="font-medium text-purple-300 hover:text-white" href={`/search?q=${encodeURIComponent(part)}`} key={`${part}-${index}`}>
               {part}
             </Link>
           );
         }
         if (/^https?:\/\/[^\s]+$/i.test(part)) {
           return (
-            <a className="font-medium text-accent-soft hover:text-white" href={part} key={`${part}-${index}`} rel="noreferrer" target="_blank">
+            <a className="font-medium text-cyan-300 hover:text-white" href={part} key={`${part}-${index}`} rel="noreferrer" target="_blank">
               {part}
             </a>
           );
@@ -429,8 +593,10 @@ function ActionButton({
   return (
     <button
       className={cn(
-        "rounded-full border px-4 py-2",
-        active ? "border-accent bg-accent/15 text-accent-soft" : "border-white/10 text-white/70 hover:bg-white/5"
+        "rounded-full border px-4 py-2 transition",
+        active
+          ? "border-accent bg-accent/15 text-accent-soft"
+          : "border-white/10 bg-white/[0.02] text-white/75 hover:bg-white/5 hover:text-white"
       )}
       disabled={disabled}
       onClick={onClick}

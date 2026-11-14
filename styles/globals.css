@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -9,7 +9,7 @@
 }
 
 html {
-  background: #000000;
+  background: #06060b;
   width: 100%;
   overflow-x: hidden;
 }
@@ -18,7 +18,12 @@ body {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  background: #000000;
+  background-color: #06060b;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(139, 92, 246, 0.14), transparent 34%),
+    radial-gradient(circle at 88% 8%, rgba(244, 63, 94, 0.14), transparent 32%),
+    radial-gradient(circle at 50% 95%, rgba(6, 182, 212, 0.08), transparent 36%);
+  background-attachment: fixed;
   color: #ffffff;
 }
 
@@ -39,66 +44,77 @@ div {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(161, 161, 170, 0.5) rgba(255, 255, 255, 0.08);
+  scrollbar-color: rgba(161, 161, 170, 0.45) rgba(255, 255, 255, 0.05);
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(161, 161, 170, 0.45);
+  background: rgba(161, 161, 170, 0.4);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .glass-panel {
-  border: 1px solid rgba(239, 68, 68, 0.18);
-  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(28px);
   background:
-    radial-gradient(circle at top left, rgba(239, 68, 68, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+    radial-gradient(circle at top left, rgba(244, 63, 94, 0.09), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.07), transparent 34%),
+    linear-gradient(180deg, rgba(20, 20, 28, 0.82), rgba(10, 10, 16, 0.88));
 }
 
 .panel-soft {
-  border: 1px solid rgba(239, 68, 68, 0.16);
-  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(28px);
   background:
-    radial-gradient(circle at top right, rgba(239, 68, 68, 0.1), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+    radial-gradient(circle at top right, rgba(244, 63, 94, 0.08), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.06), transparent 32%),
+    linear-gradient(180deg, rgba(18, 18, 26, 0.84), rgba(9, 9, 14, 0.9));
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.panel-soft:hover {
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .accent-ring {
   box-shadow:
-    0 0 0 1px rgba(239, 68, 68, 0.3),
-    0 18px 60px rgba(127, 29, 29, 0.35);
+    0 0 0 1px rgba(244, 63, 94, 0.35),
+    0 20px 60px rgba(139, 92, 246, 0.22);
 }
 
 .signal-line {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.95), rgba(255, 255, 255, 0.85));
+  background: linear-gradient(90deg, #f43f5e, #8b5cf6, #06b6d4);
 }
 
 .edge-light {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 24px 80px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(127, 29, 29, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 70px rgba(0, 0, 0, 0.45);
 }
 
 .overlay-backdrop {
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(12px);
+  background-color: rgba(4, 4, 9, 0.76);
+  backdrop-filter: blur(14px);
 }
 
 .overlay-panel {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(24px);
-  background-color: rgba(8, 8, 8, 0.96);
-  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(28px);
+  background:
+    radial-gradient(circle at top right, rgba(139, 92, 246, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(16, 16, 24, 0.98), rgba(8, 8, 13, 0.99));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.6);
 }
 
 .overlay-panel-ease {
@@ -110,9 +126,9 @@ div {
 
 .media-glow {
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 25%),
-    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.08), transparent 18%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.1), transparent 28%),
+    radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.1), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
 }
 
 .no-scrollbar {
@@ -140,13 +156,12 @@ div {
   .panel-soft,
   .glass-panel,
   .overlay-panel {
-    background-color: rgba(8, 8, 8, 0.96);
-    background-image: none;
+    background-color: rgba(12, 12, 18, 0.96);
   }
 
   .edge-light {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 12px 36px rgba(0, 0, 0, 0.26);
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 12px 36px rgba(0, 0, 0, 0.32);
   }
 }

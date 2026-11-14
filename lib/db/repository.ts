@@ -156,7 +156,16 @@ function mapPost(
   mentionRows: MentionRow[],
   pollOptionRows: PollOptionRow[],
   repostTargetRows: RepostTargetRow[],
-  viewerRepostedPostIds: Set<string>
+  viewerRepostedPostIds: Set<string>,
+  previewCommentRows: Array<{
+    id: string;
+    post_id: string;
+    body: string;
+    created_at: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  }> = []
 ) {
   return rows.map<FeedPost>((row) => ({
     id: row.id,
@@ -234,7 +243,18 @@ function mapPost(
         authorUsername: item.username,
         authorDisplayName: item.display_name,
         body: item.body
-      }))[0] ?? null
+      }))[0] ?? null,
+    previewComments: previewCommentRows
+      .filter((item) => item.post_id === row.id && item.body.trim().length > 0)
+      .slice(-3)
+      .map((item) => ({
+        id: item.id,
+        body: item.body,
+        createdAt: item.created_at,
+        authorUsername: item.username,
+        authorDisplayName: item.display_name,
+        authorAvatarUrl: normalizeStoredFileUrl(item.avatar_url)
+      }))
   }));
 }
 
@@ -586,6 +606,29 @@ export async function getUserBySessionToken(sessionId: string) {
   return row ? mapUser(row) : null;
 }
 
+async function getPreviewCommentsByPostIds(postIds: string[]) {
+  if (postIds.length === 0) {
+    return [];
+  }
+  const placeholders = postIds.map(() => "?").join(", ");
+  return await all<{
+    id: string;
+    post_id: string;
+    body: string;
+    created_at: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  }>(
+    `SELECT c.id, c.post_id, c.body, c.created_at, u.username, u.display_name, u.avatar_url
+     FROM comments c
+     JOIN users u ON u.id = c.user_id
+     WHERE c.post_id IN (${placeholders})
+     ORDER BY c.created_at ASC`,
+    postIds
+  );
+}
+
 async function getPostRowsForSql(sql: string, params: unknown[]) {
   const rows = await all<PostRow>(sql, params);
   let rankedIds = rows.map((row) => row.id);
@@ -603,15 +646,16 @@ async function getPostRowsForSql(sql: string, params: unknown[]) {
     (left, right) => rankedIds.indexOf(left.id) - rankedIds.indexOf(right.id)
   );
   const postIds = ordered.map((row) => row.id);
-  const [mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds] = await Promise.all([
+  const [mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds, previewCommentRows] = await Promise.all([
     getMediaByPostIds(postIds),
     getTagsByPostIds(postIds),
     getMentionsByPostIds(postIds),
     getPollOptionsByPostIds(postIds, String(params[0] ?? "")),
     getRepostTargetsByPostIds(postIds),
-    getViewerRepostedPostIds(postIds, String(params[0] ?? ""))
+    getViewerRepostedPostIds(postIds, String(params[0] ?? "")),
+    getPreviewCommentsByPostIds(postIds)
   ]);
-  return mapPost(ordered, mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds);
+  return mapPost(ordered, mediaRows, tagRows, mentionRows, pollOptionRows, repostTargetRows, viewerRepostedPostIds, previewCommentRows);
 }
 
 async function canViewerAccessPrivateContent(targetUserId: string, viewerId: string) {

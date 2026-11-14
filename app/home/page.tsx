@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { ArenaQuickComposer } from "@/components/arena-quick-composer";
 import { EmptyState } from "@/components/empty-state";
 import { HomeAIToolsPanel } from "@/components/home-ai-tools-panel";
 import { HomeStoriesPanel } from "@/components/home-stories-panel";
@@ -238,37 +239,24 @@ export default async function HomePage() {
       }
       headerMode="brand-only"
       showInstallPrompt={false}
-      subtitle="Check your feed, post something, or finish setting up your profile."
-      title={`Home`}
+      subtitle="Drop a take, summon AI personas, and jump into live debates."
+      title={`Arena Feed`}
     >
-      <section className="flex items-center justify-between gap-4 rounded-[24px] border border-white/[0.08] bg-white/[0.02] px-4 py-4">
-        <div>
-          <p className="text-base font-semibold text-white">Home</p>
-          <p className="mt-1 text-sm text-white/58">
-            Stories first, feed next, everything else off to the side.
-          </p>
-        </div>
-        <Link
-          className="rounded-2xl border border-accent/35 bg-[linear-gradient(180deg,#f87171,#ef4444)] px-4 py-3 text-sm font-medium text-white"
-          href={viewer ? "/creator" : "/login?next=%2Fcreator"}
-        >
-          {viewer ? "Create post" : "Join Arena to post"}
-        </Link>
-      </section>
+      <ArenaQuickComposer />
+      <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
       <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
         <Link
-          className="rounded-[26px] border border-accent/35 bg-[linear-gradient(180deg,rgba(248,113,113,0.22),rgba(239,68,68,0.12))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(127,29,29,0.18)] transition hover:border-accent/55 hover:bg-[linear-gradient(180deg,rgba(248,113,113,0.28),rgba(239,68,68,0.16))]"
+          className="rounded-[26px] border border-purple-400/35 bg-[linear-gradient(135deg,rgba(139,92,246,0.22),rgba(244,63,94,0.14))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(139,92,246,0.18)] transition hover:border-purple-400/55 hover:brightness-110"
           href={viewer ? "/ai-tools" : "/login?next=%2Fai-tools"}
         >
-          <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">AI Tools</p>
-          <h2 className="mt-2 text-2xl font-semibold">Open AI tools</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/68">
-            Go straight to text-to-video, image-to-video, persona chat, and voice tools.
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">AI Studio</p>
+          <h2 className="mt-2 text-2xl font-semibold">Create with AI Studio</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
+            Generate text-to-video, image-to-video, voice clones, and direct AI persona chats.
           </p>
         </Link>
         <HomeAIToolsPanel />
       </section>
-      <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
       {feed.length === 0 ? (
         <EmptyState
           actionHref="/explore"
