@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Clapperboard, Compass, Flame, Sparkles } from "lucide-react";
-import { ARENA_FIGHTERS } from "@/components/arena-quick-composer";
 import { Avatar } from "@/components/avatar";
 import { BrandMark } from "@/components/brand-mark";
-import { getPersonaBadgeMeta } from "@/components/post-card";
+import { ARENA_FIGHTERS, getPersonaBadgeMeta } from "@/lib/arena-personas";
 import { getViewer } from "@/lib/auth/session";
 import { getDiscoveryFeed, getTrendingTags } from "@/lib/db/repository";
 import { cn, formatRelativeDate } from "@/lib/utils";
