@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Paperclip, Sparkles, Square, X } from "lucide-react";
+import { Loader2, Mic, Paperclip, Send, Sparkles, Square, Swords, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useAuthModal } from "@/components/auth-modal";
@@ -20,10 +20,10 @@ export type ReplyTarget = {
 };
 
 const ARENA_PERSONA_SHORTCUTS = [
-  { handle: "@nova_hype", label: "Summon Hype-Man" },
-  { handle: "@nova_purist", label: "Summon Tech Purist" },
-  { handle: "@nova_advocate", label: "Summon Devil's Advocate" },
-  { handle: "@nova_director", label: "Summon Executive Director" }
+  { handle: "@nova_hype", slug: "nova_hype" as const, label: "⚡ Hype-Man" },
+  { handle: "@nova_purist", slug: "nova_purist" as const, label: "⌘ Tech Purist" },
+  { handle: "@nova_advocate", slug: "nova_advocate" as const, label: "🔥 Devil's Advocate" },
+  { handle: "@nova_director", slug: "nova_director" as const, label: "👑 Director" }
 ];
 
 export function CommentComposer({
@@ -44,7 +44,7 @@ export function CommentComposer({
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
   const [aiPending, startAITransition] = useTransition();
-  const [awaitingNovaReply, setAwaitingNovaReply] = useState(false);
+  const [awaitingNovaReply, setAwaitingNovaReply] = useState<string | null>(null);
   const [recordingVoice, setRecordingVoice] = useState(false);
   const [recordingStream, setRecordingStream] = useState<MediaStream | null>(null);
   const [attachmentMeta, setAttachmentMeta] = useState<{ name: string; type: string } | null>(null);
@@ -65,9 +65,38 @@ export function CommentComposer({
     }
   }, [replyingTo]);
 
+  async function handleDirectSummon(
+    personaSlug: "nova_hype" | "nova_purist" | "nova_advocate" | "nova_director" | null,
+    label: string,
+    singlePersona: boolean
+  ) {
+    setAwaitingNovaReply(
+      `Nova Multiplexer is dispatching ${label} into this thread...`
+    );
+    try {
+      await fetch("/api/arena/summon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId,
+          personaSlug,
+          singlePersona
+        })
+      });
+      window.setTimeout(() => router.refresh(), 3500);
+      window.setTimeout(() => router.refresh(), 7500);
+      window.setTimeout(() => {
+        router.refresh();
+        setAwaitingNovaReply(null);
+      }, 12500);
+    } catch {
+      setAwaitingNovaReply(null);
+    }
+  }
+
   return (
     <form
-      className="glass-panel rounded-[28px] p-4"
+      className="glass-panel edge-light rounded-[28px] border border-white/10 p-4 md:p-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (!isAuthenticated) {
@@ -128,12 +157,14 @@ export function CommentComposer({
             fileRef.current.value = "";
           }
           router.refresh();
-          setAwaitingNovaReply(true);
+          setAwaitingNovaReply(
+            "Nova AI Persona is reading your comment and drafting a counter-reply..."
+          );
           window.setTimeout(() => router.refresh(), 4000);
           window.setTimeout(() => {
             router.refresh();
-            setAwaitingNovaReply(false);
-          }, 8500);
+            setAwaitingNovaReply(null);
+          }, 9000);
         });
       }}
     >
@@ -153,26 +184,36 @@ export function CommentComposer({
           ) : null}
         </div>
       ) : null}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[11px] uppercase tracking-[0.14em] text-white/45">Tag AI Persona:</span>
-        {ARENA_PERSONA_SHORTCUTS.map((persona) => (
+
+      {/* Instant AI Summon Bar */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-black/35 p-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
+            Summon AI Live:
+          </span>
           <button
-            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-white/75 transition hover:border-accent/40 hover:bg-accent/10 hover:text-white"
-            key={persona.handle}
-            onClick={() => {
-              if (!isAuthenticated) {
-                openAuthModal(`Sign in to summon ${persona.handle} into the thread.`, `/post/${postId}`);
-                return;
-              }
-              setBody((prev) => (prev.includes(persona.handle) ? prev : `${persona.handle} ${prev}`));
-              textareaRef.current?.focus();
-            }}
+            className="inline-flex items-center gap-1 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/25 hover:text-white disabled:opacity-50"
+            disabled={Boolean(awaitingNovaReply)}
+            onClick={() => handleDirectSummon(null, "2-Persona Crossfire", false)}
             type="button"
           >
-            {persona.label} ({persona.handle})
+            <Swords className="h-3 w-3" />
+            2-Persona Clash
           </button>
-        ))}
+          {ARENA_PERSONA_SHORTCUTS.map((persona) => (
+            <button
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/75 transition hover:border-purple-400/40 hover:bg-purple-500/15 hover:text-white disabled:opacity-50"
+              disabled={Boolean(awaitingNovaReply)}
+              key={persona.handle}
+              onClick={() => handleDirectSummon(persona.slug, persona.label, true)}
+              type="button"
+            >
+              {persona.label}
+            </button>
+          ))}
+        </div>
       </div>
+
       {attachmentMeta ? (
         <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/78">
           <div className="flex items-center justify-between gap-3">
@@ -203,11 +244,13 @@ export function CommentComposer({
         </div>
       ) : null}
 
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm text-white/60">Jump in with text or a quick voice take.</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-white/60">
+          Jump in with your take or tag <span className="text-cyan-300">@nova_hype</span> / <span className="text-purple-300">@nova_advocate</span>.
+        </p>
         <div className="flex flex-wrap gap-2">
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/75 hover:bg-white/5"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition hover:border-purple-400/40 hover:text-white"
             disabled={aiPending}
             onClick={() => {
               if (!isAuthenticated) {
@@ -228,11 +271,11 @@ export function CommentComposer({
             }}
             type="button"
           >
-            <Sparkles className="h-3.5 w-3.5 text-accent-soft" />
-            {aiPending ? "Thinking..." : "AI reply"}
+            <Sparkles className="h-3.5 w-3.5 text-purple-300" />
+            {aiPending ? "Drafting..." : "Draft Assist"}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-white/75 hover:bg-white/5"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition hover:border-cyan-400/40 hover:text-white"
             onClick={async () => {
               if (!isAuthenticated) {
                 openAuthModal("Sign in to leave a voice comment.", `/post/${postId}`);
@@ -281,11 +324,24 @@ export function CommentComposer({
             }}
             type="button"
           >
-            {recordingVoice ? <Square className="h-3.5 w-3.5 text-accent-soft" /> : <Mic className="h-3.5 w-3.5 text-accent-soft" />}
-            {recordingVoice ? "Stop voice note" : "Voice note"}
+            {recordingVoice ? (
+              <Square className="h-3.5 w-3.5 text-accent-soft" />
+            ) : (
+              <Mic className="h-3.5 w-3.5 text-cyan-300" />
+            )}
+            {recordingVoice ? "Stop Mic" : "Voice Note"}
+          </button>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition hover:border-white/25 hover:text-white"
+            onClick={() => fileRef.current?.click()}
+            type="button"
+          >
+            <Paperclip className="h-3.5 w-3.5 text-white/60" />
+            Audio File
           </button>
         </div>
       </div>
+
       {recordingVoice ? (
         <div className="mb-3 flex items-center gap-3 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3">
           <MicrophoneLevel active level={micLevel} />
@@ -293,45 +349,46 @@ export function CommentComposer({
         </div>
       ) : null}
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <textarea
-          className="min-h-24 flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 outline-none focus:border-accent"
+          className="min-h-[84px] flex-1 rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-sm text-white placeholder-white/40 outline-none transition focus:border-purple-400/50"
           onChange={(event) => setBody(event.target.value)}
           onFocus={() => {
             if (!isAuthenticated) {
               openAuthModal("Sign in to reply and join the debate on this post.", `/post/${postId}`);
             }
           }}
-          placeholder="Add a comment, tag @nova_hype / @nova_purist / @nova_advocate, or send a voice note..."
+          placeholder="Add your argument, challenge @nova_hype / @nova_purist / @nova_advocate, or drop a voice note..."
           ref={textareaRef}
           value={body}
         />
         <button
-          className="h-fit rounded-2xl bg-accent px-5 py-3 font-medium text-white disabled:opacity-60"
+          className="inline-flex h-fit items-center justify-center gap-2 rounded-2xl border border-accent/45 bg-[linear-gradient(135deg,#f43f5e,#8b5cf6)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(244,63,94,0.28)] transition hover:brightness-110 disabled:opacity-60"
           disabled={pending}
           type="submit"
         >
-          Reply
+          <Send className="h-4 w-4" />
+          {pending ? "Sending..." : "Post Reply"}
         </button>
       </div>
+
       {awaitingNovaReply ? (
-        <p className="mt-3 text-xs text-accent-soft">
-          Nova AI Persona is reading your comment and drafting a reply...
-        </p>
+        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-cyan-400/35 bg-cyan-500/12 px-4 py-2.5 text-xs text-cyan-200">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" />
+          <span>{awaitingNovaReply}</span>
+        </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <input
-          accept="audio/webm,audio/mp4,audio/mpeg,audio/wav"
-          className="block text-sm text-white/60"
-          onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
-            setAttachmentMeta(file ? { name: file.name, type: file.type } : null);
-          }}
-          ref={fileRef}
-          type="file"
-        />
-      </div>
+      <input
+        accept="audio/webm,audio/mp4,audio/mpeg,audio/wav"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          setAttachmentMeta(file ? { name: file.name, type: file.type } : null);
+        }}
+        ref={fileRef}
+        type="file"
+      />
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
     </form>
   );

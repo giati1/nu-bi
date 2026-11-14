@@ -71,6 +71,7 @@ class WebhookPostPayload(BaseModel):
     parentCommentId: Optional[str] = None
     parentCommentBody: Optional[str] = None
     targetPersonaSlug: Optional[str] = None
+    singlePersona: bool = False
     author: PostAuthor = Field(default_factory=PostAuthor)
     tags: List[str] = Field(default_factory=list)
     media: List[Dict[str, Any]] = Field(default_factory=list)
@@ -153,11 +154,16 @@ async def director_pass(
 ) -> List[Dict[str, Any]]:
     valid_slugs = {p["slug"]: p for p in personas}
 
-    if post.event == "comment.created" or post.commentId:
-        if post.targetPersonaSlug and post.targetPersonaSlug in valid_slugs:
-            logger.info("Comment targeted persona directly: %s", post.targetPersonaSlug)
-            return [valid_slugs[post.targetPersonaSlug]]
+    if post.targetPersonaSlug and post.targetPersonaSlug in valid_slugs:
+        primary = valid_slugs[post.targetPersonaSlug]
+        if post.event == "comment.created" or post.commentId or post.singlePersona:
+            logger.info("Targeted single persona directly: %s", post.targetPersonaSlug)
+            return [primary]
+        # For a 2-persona crossfire where user picked the lead fighter, pair with a contrasting fighter
+        contrasting = [p for p in personas if p["slug"] != post.targetPersonaSlug]
+        return [primary, contrasting[0]] if contrasting else [primary]
 
+    if post.event == "comment.created" or post.commentId:
         comment_lower = (post.commentBody or "").lower()
         for slug, persona in valid_slugs.items():
             if f"@{slug}" in comment_lower or slug in comment_lower:
@@ -525,20 +531,7 @@ async def assistant_search(
         }
 
 
-@app.post("/assistant/spark")
-async def assistant_spark_debate(
-    req: AssistantSparkRequest,
-    x_nubi_agent_secret: Optional[str] = Header(default=None),
-) -> Dict[str, Any]:
-    """
-    Autonomous Arena Spark:
-    Scouts a live topic (or uses `req.topic`), drafts a provocative Arena post via Nova (`gemma3:4b`),
-    publishes it to `https://nu-bi.com/api/internal/local-agent/post`, and triggers a multi-persona
-    crossfire debate on the post!
-    """
-    if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
-        raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
-
+async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
     async with httpx.AsyncClient() as client:
         topic_context = req.topic
         if not topic_context:
@@ -584,7 +577,7 @@ async def assistant_spark_debate(
                 event="post.created",
                 postId=created_post_id,
                 body=cleaned_post,
-                author=PostAuthor(username=req.agentSlug, displayName="NUBI"),
+                author=PostAuthor(username=req.agentSlug, displayName="Nova // Executive Director"),
                 tags=["ai", "arena"],
             )
             debate_result = await process_post_pipeline(debate_payload)
@@ -595,6 +588,34 @@ async def assistant_spark_debate(
             "publishedPost": post_data,
             "personaDebate": debate_result,
         }
+
+
+@app.post("/assistant/spark")
+async def assistant_spark_debate(
+    req: AssistantSparkRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    x_nubi_agent_secret: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    """
+    Autonomous Arena Spark:
+    Scouts a live topic (or uses `req.topic`), drafts a provocative Arena post via Nova (`gemma3:4b`),
+    publishes it to `https://nu-bi.com/api/internal/local-agent/post`, and triggers a multi-persona
+    crossfire debate on the post!
+    """
+    if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
+
+    if request.query_params.get("async") == "1":
+        background_tasks.add_task(_execute_spark_debate, req)
+        return {
+            "ok": True,
+            "mode": "async",
+            "topicSeed": req.topic or "live_trend_scout",
+            "agentSlug": req.agentSlug,
+        }
+
+    return await _execute_spark_debate(req)
 
 
 @app.post("/assistant/task")

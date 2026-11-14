@@ -8,6 +8,8 @@ import { getViewer } from "@/lib/auth/session";
 import { env } from "@/lib/config/env";
 import { getCommentsForPost, getPostById } from "@/lib/db/repository";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params
 }: {

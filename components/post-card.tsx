@@ -8,13 +8,17 @@ import {
   Check,
   Eye,
   Heart,
+  Loader2,
   MessageCircle,
   Play,
   Repeat2,
+  Send,
   Share2,
   ShieldAlert,
   Sparkles,
-  Trash2
+  Swords,
+  Trash2,
+  Zap
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -32,36 +36,49 @@ export function getPersonaBadgeMeta(username: string) {
   const lower = username.trim().toLowerCase();
   if (lower === "nova_hype") {
     return {
-      label: "Hype-Man · Llama 3.2",
-      className: "border-amber-400/35 bg-amber-500/15 text-amber-300"
+      label: "Hype-Man · Gemma 3",
+      className: "border-amber-400/40 bg-amber-500/15 text-amber-300",
+      cardAccent: "border-l-2 border-l-amber-400/80 bg-amber-500/[0.05]"
     };
   }
   if (lower === "nova_purist") {
     return {
-      label: "Tech Purist · Qwen 2.5",
-      className: "border-cyan-400/35 bg-cyan-500/15 text-cyan-300"
+      label: "Tech Purist · Gemma 3",
+      className: "border-cyan-400/40 bg-cyan-500/15 text-cyan-300",
+      cardAccent: "border-l-2 border-l-cyan-400/80 bg-cyan-500/[0.05]"
     };
   }
   if (lower === "nova_advocate") {
     return {
-      label: "Devil's Advocate · Dolphin",
-      className: "border-purple-400/35 bg-purple-500/15 text-purple-300"
+      label: "Devil's Advocate · Gemma 3",
+      className: "border-purple-400/40 bg-purple-500/15 text-purple-300",
+      cardAccent: "border-l-2 border-l-purple-400/80 bg-purple-500/[0.05]"
     };
   }
   if (lower === "nova_director") {
     return {
       label: "Director · Gemma 3",
-      className: "border-emerald-400/35 bg-emerald-500/15 text-emerald-300"
+      className: "border-emerald-400/40 bg-emerald-500/15 text-emerald-300",
+      cardAccent: "border-l-2 border-l-emerald-400/80 bg-emerald-500/[0.05]"
     };
   }
   if (lower.startsWith("nova_")) {
     return {
-      label: "AI Persona",
-      className: "border-accent/35 bg-accent/15 text-accent-soft"
+      label: "AI Persona · Gemma 3",
+      className: "border-accent/40 bg-accent/15 text-accent-soft",
+      cardAccent: "border-l-2 border-l-rose-400/80 bg-rose-500/[0.05]"
     };
   }
   return null;
 }
+
+const SUMMON_OPTIONS = [
+  { slug: null, label: "⚔️ 2-Persona Clash", single: false },
+  { slug: "nova_hype", label: "⚡ Hype-Man", single: true },
+  { slug: "nova_purist", label: "⌘ Tech Purist", single: true },
+  { slug: "nova_advocate", label: "🔥 Devil's Advocate", single: true },
+  { slug: "nova_director", label: "👑 Director", single: true }
+] as const;
 
 export function PostCard({
   post,
@@ -75,11 +92,15 @@ export function PostCard({
   allowEngagementOverride?: boolean;
 }) {
   const router = useRouter();
-  const { requireAuthAction } = useAuthModal();
+  const { isAuthenticated, openAuthModal, requireAuthAction } = useAuthModal();
   const [pending, startTransition] = useTransition();
+  const [replyPending, startReplyTransition] = useTransition();
   const [viewCount, setViewCount] = useState(post.viewCount);
   const [failedMediaIds, setFailedMediaIds] = useState<string[]>([]);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showSummonBar, setShowSummonBar] = useState(false);
+  const [summoningLabel, setSummoningLabel] = useState<string | null>(null);
+  const [quickReply, setQuickReply] = useState("");
   const hasMedia = post.media.length > 0;
   const hasVideo = post.media.some((item) => isVideoMedia(item.mimeType, item.url));
   const ViewIcon = hasVideo ? Play : Eye;
@@ -89,6 +110,34 @@ export function PostCard({
 
   function markMediaFailed(mediaId: string) {
     setFailedMediaIds((current) => (current.includes(mediaId) ? current : [...current, mediaId]));
+  }
+
+  async function handleSummonPersona(
+    personaSlug: "nova_hype" | "nova_purist" | "nova_advocate" | "nova_director" | null,
+    label: string,
+    singlePersona: boolean
+  ) {
+    setSummoningLabel(label);
+    setShowSummonBar(false);
+    try {
+      await fetch("/api/arena/summon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: post.id,
+          personaSlug,
+          singlePersona
+        })
+      });
+      window.setTimeout(() => router.refresh(), 3500);
+      window.setTimeout(() => router.refresh(), 7500);
+      window.setTimeout(() => {
+        router.refresh();
+        setSummoningLabel(null);
+      }, 12500);
+    } catch {
+      setSummoningLabel(null);
+    }
   }
 
   async function handleSharePost() {
@@ -113,7 +162,7 @@ export function PostCard({
   }
 
   return (
-    <article className="panel-soft edge-light min-w-0 overflow-hidden rounded-[32px] border border-white/[0.09] p-4 md:p-6">
+    <article className="panel-soft edge-light min-w-0 overflow-hidden rounded-[32px] border border-white/[0.09] p-4 transition duration-200 hover:border-white/[0.16] md:p-6">
       <div className="flex min-w-0 items-start justify-between gap-4">
         {authorProfileHref ? (
           <Link className="flex min-w-0 items-center gap-3.5" href={authorProfileHref}>
@@ -163,7 +212,26 @@ export function PostCard({
             </div>
           </div>
         )}
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+              showSummonBar || summoningLabel
+                ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-200 shadow-[0_0_20px_rgba(6,182,212,0.2)]"
+                : "border-purple-400/35 bg-purple-500/12 text-purple-200 hover:border-cyan-400/45 hover:bg-cyan-500/15 hover:text-white"
+            )}
+            disabled={Boolean(summoningLabel)}
+            onClick={() => setShowSummonBar((current) => !current)}
+            title="Summon Nova AI Personas into this post"
+            type="button"
+          >
+            {summoningLabel ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />
+            ) : (
+              <Swords className="h-3.5 w-3.5 text-cyan-300" />
+            )}
+            <span>{summoningLabel ? "AI Entering..." : "Summon AI"}</span>
+          </button>
           {Boolean(viewerId) && post.author.id === viewerId ? (
             <Link
               className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/70 hover:bg-white/5"
@@ -216,6 +284,37 @@ export function PostCard({
           ) : null}
         </div>
       </div>
+
+      {/* 1-Click Summon AI Persona Drawer */}
+      {showSummonBar ? (
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-400/30 bg-[linear-gradient(135deg,rgba(6,182,212,0.12),rgba(139,92,246,0.12))] p-3">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
+            <Zap className="h-3.5 w-3.5 text-cyan-300" />
+            Deploy AI Fighter to this thread:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {SUMMON_OPTIONS.map((opt) => (
+              <button
+                className="rounded-full border border-white/15 bg-black/45 px-3 py-1 text-xs font-medium text-white/85 transition hover:border-cyan-400/50 hover:bg-cyan-500/20 hover:text-white"
+                key={opt.label}
+                onClick={() => handleSummonPersona(opt.slug, opt.label, opt.single)}
+                type="button"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {summoningLabel ? (
+        <div className="mt-3.5 flex items-center gap-2.5 rounded-2xl border border-cyan-400/35 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-200">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" />
+          <span>
+            Nova Multiplexer is dispatching <strong>{summoningLabel}</strong> to debate this post live...
+          </span>
+        </div>
+      ) : null}
 
       {post.repostedPost ? (
         <div className="mt-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
@@ -362,13 +461,25 @@ export function PostCard({
         </div>
       ) : null}
 
-      {previewComments.length > 0 ? (
-        <div className="mt-5 rounded-[24px] border border-white/[0.08] bg-black/35 p-3.5 md:p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
-              <Sparkles className="h-3.5 w-3.5" />
-              Live Arena Replies ({post.commentCount})
-            </span>
+      {/* Live Arena Crossfire Replies + Inline Quick Reply */}
+      <div className="mt-5 rounded-[24px] border border-white/[0.08] bg-black/40 p-3.5 md:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+            <Sparkles className="h-3.5 w-3.5" />
+            Live Arena Replies ({post.commentCount})
+          </span>
+          <div className="flex items-center gap-3">
+            {previewComments.length === 0 ? (
+              <button
+                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-300 transition hover:text-white"
+                disabled={Boolean(summoningLabel)}
+                onClick={() => handleSummonPersona(null, "⚔️ 2-Persona Clash", false)}
+                type="button"
+              >
+                <Zap className="h-3 w-3" />
+                Trigger AI Crossfire
+              </button>
+            ) : null}
             <Link
               className="text-xs font-medium text-white/65 transition hover:text-white"
               href={`/post/${post.id}`}
@@ -376,12 +487,18 @@ export function PostCard({
               Open full debate →
             </Link>
           </div>
+        </div>
+
+        {previewComments.length > 0 ? (
           <div className="space-y-2.5">
             {previewComments.map((comment) => {
               const badge = getPersonaBadgeMeta(comment.authorUsername);
               return (
                 <Link
-                  className="block rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3.5 py-2.5 transition hover:border-white/15 hover:bg-white/[0.05]"
+                  className={cn(
+                    "block rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3.5 py-2.5 transition hover:border-white/15 hover:bg-white/[0.05]",
+                    badge?.cardAccent
+                  )}
                   href={`/post/${post.id}`}
                   key={comment.id}
                 >
@@ -401,15 +518,77 @@ export function PostCard({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/80">
+                  <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-white/85">
                     {comment.body}
                   </p>
                 </Link>
               );
             })}
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <p className="text-xs text-white/45">
+            No replies yet — drop a comment below or click <strong>Summon AI</strong> to watch two personas clash on this post.
+          </p>
+        )}
+
+        {/* Inline Quick Reply Form right inside the Feed Card */}
+        <form
+          className="mt-3 flex items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!isAuthenticated) {
+              openAuthModal("Sign in to jump into this Arena debate.", `/post/${post.id}`);
+              return;
+            }
+            if (!quickReply.trim()) {
+              return;
+            }
+            startReplyTransition(async () => {
+              const response = await fetch("/api/comments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  postId: post.id,
+                  body: quickReply.trim(),
+                  media: []
+                })
+              });
+              if (response.ok) {
+                setQuickReply("");
+                setSummoningLabel("AI Persona Reply");
+                router.refresh();
+                window.setTimeout(() => router.refresh(), 4000);
+                window.setTimeout(() => {
+                  router.refresh();
+                  setSummoningLabel(null);
+                }, 9000);
+              }
+            });
+          }}
+        >
+          <input
+            className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs text-white placeholder-white/40 outline-none transition focus:border-purple-400/50"
+            maxLength={400}
+            onChange={(event) => setQuickReply(event.target.value)}
+            onFocus={() => {
+              if (!isAuthenticated) {
+                openAuthModal("Sign in to reply or challenge an AI persona.", `/post/${post.id}`);
+              }
+            }}
+            placeholder="Reply or tag @nova_hype / @nova_purist / @nova_advocate..."
+            type="text"
+            value={quickReply}
+          />
+          <button
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-purple-400/35 bg-purple-500/20 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-purple-500/35 disabled:opacity-50"
+            disabled={replyPending}
+            type="submit"
+          >
+            <Send className="h-3 w-3" />
+            <span>{replyPending ? "..." : "Reply"}</span>
+          </button>
+        </form>
+      </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-4 text-sm">
         <ActionButton

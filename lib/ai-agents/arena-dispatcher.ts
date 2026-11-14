@@ -23,7 +23,10 @@ async function resolveDispatcherConfig() {
   };
 }
 
-export function dispatchNewPostToLocalAI(post: FeedPost | null) {
+export function dispatchNewPostToLocalAI(
+  post: FeedPost | null,
+  options?: { targetPersonaSlug?: string | null; singlePersona?: boolean }
+) {
   if (!post || post.status !== "published") {
     return;
   }
@@ -40,6 +43,8 @@ export function dispatchNewPostToLocalAI(post: FeedPost | null) {
         postId: post.id,
         body: post.body,
         createdAt: post.createdAt,
+        targetPersonaSlug: options?.targetPersonaSlug ?? null,
+        singlePersona: Boolean(options?.singlePersona),
         author: {
           id: post.author.id,
           username: post.author.username,
@@ -85,6 +90,47 @@ export function dispatchNewPostToLocalAI(post: FeedPost | null) {
       // Non-Cloudflare runtime: promise continues asynchronously in Node.
     }
   })();
+}
+
+export async function dispatchArenaSparkToLocalAI(options?: {
+  topic?: string | null;
+  agentSlug?: string;
+}): Promise<boolean> {
+  try {
+    const { endpoint, secret, ctx } = await resolveDispatcherConfig();
+    if (!endpoint) {
+      return false;
+    }
+
+    const baseUrl = endpoint.replace(/\/webhook\/new-post\/?$/i, "").replace(/\/$/, "");
+    const sparkUrl = `${baseUrl}/assistant/spark?async=1`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (secret) {
+      headers["x-nubi-agent-secret"] = secret;
+    }
+
+    const task = fetch(sparkUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        topic: options?.topic ?? null,
+        agentSlug: options?.agentSlug ?? "nova_director",
+        triggerPersonaDebate: true
+      })
+    });
+
+    ctx?.waitUntil?.(task);
+    const response = await task;
+    return response.ok;
+  } catch (error) {
+    console.error("[arena-dispatcher] failed to dispatch spark to LOCAL_AI_ENDPOINT", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return false;
+  }
 }
 
 export function dispatchNewCommentToLocalAI(input: {
