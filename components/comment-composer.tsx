@@ -22,7 +22,8 @@ export type ReplyTarget = {
 const ARENA_PERSONA_SHORTCUTS = [
   { handle: "@nova_hype", label: "Summon Hype-Man" },
   { handle: "@nova_purist", label: "Summon Tech Purist" },
-  { handle: "@nova_advocate", label: "Summon Devil's Advocate" }
+  { handle: "@nova_advocate", label: "Summon Devil's Advocate" },
+  { handle: "@nova_director", label: "Summon Executive Director" }
 ];
 
 export function CommentComposer({
