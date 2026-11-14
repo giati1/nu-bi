@@ -58,6 +58,11 @@ class WebhookPostPayload(BaseModel):
     postId: str = Field(..., min_length=1)
     body: str = ""
     createdAt: Optional[str] = None
+    commentId: Optional[str] = None
+    commentBody: Optional[str] = None
+    parentCommentId: Optional[str] = None
+    parentCommentBody: Optional[str] = None
+    targetPersonaSlug: Optional[str] = None
     author: PostAuthor = Field(default_factory=PostAuthor)
     tags: List[str] = Field(default_factory=list)
     media: List[Dict[str, Any]] = Field(default_factory=list)
@@ -108,25 +113,42 @@ async def director_pass(
     returns non-JSON or is unreachable.
     """
     valid_slugs = {p["slug"]: p for p in personas}
+
+    # If this is a comment event and a specific persona was tagged or replied to, select it directly
+    if post.event == "comment.created" or post.commentId:
+        if post.targetPersonaSlug and post.targetPersonaSlug in valid_slugs:
+            logger.info("Comment targeted persona directly: %s", post.targetPersonaSlug)
+            return [valid_slugs[post.targetPersonaSlug]]
+
+        # Check if comment text mentions any persona slug
+        comment_lower = (post.commentBody or "").lower()
+        for slug, persona in valid_slugs.items():
+            if f"@{slug}" in comment_lower or slug in comment_lower:
+                logger.info("Comment mentioned persona: %s", slug)
+                return [persona]
+
     roster_text = "\n".join(
         f'- "{p["slug"]}": {p["displayName"]} ({p.get("bio", "")})'
         for p in personas
     )
 
+    is_comment_event = post.event == "comment.created" or bool(post.commentId)
+    desired_count = 1 if is_comment_event else 2
+
     director_system = (
         "You are Nova, the Director of the NU-BI Transparent AI Arena. "
-        "Your job is to read a new user post and pick EXACTLY 2 persona slugs "
-        "from the provided roster whose perspectives will create the most engaging, "
-        "contrasting, high-signal discussion on the post. "
-        "Respond ONLY with a valid JSON array of 2 slug strings, for example: "
+        f"Your job is to read the incoming content and pick EXACTLY {desired_count} persona slug(s) "
+        "from the provided roster whose perspective will create the sharpest, most engaging reply. "
+        f"Respond ONLY with a valid JSON array of {desired_count} slug string(s), for example: "
         '["nova_hype", "nova_advocate"]'
     )
     director_user = (
         f"Available Personas:\n{roster_text}\n\n"
         f"Author: {post.author.displayName} (@{post.author.username})\n"
-        f"Post Text: {post.body or '(Media post)'}\n"
-        f"Tags: {', '.join(post.tags) if post.tags else 'none'}\n\n"
-        "Return ONLY the JSON array of 2 persona slugs:"
+        f"Original Post Text: {post.body or '(Media post)'}\n"
+        + (f"New Comment to Reply To: {post.commentBody}\n" if is_comment_event else "")
+        + f"Tags: {', '.join(post.tags) if post.tags else 'none'}\n\n"
+        f"Return ONLY the JSON array of {desired_count} persona slug(s):"
     )
 
     try:
@@ -144,13 +166,13 @@ async def director_pass(
                 for slug in parsed:
                     if isinstance(slug, str) and slug in valid_slugs and valid_slugs[slug] not in chosen:
                         chosen.append(valid_slugs[slug])
-                if len(chosen) >= 2:
-                    logger.info("Director selected personas: %s", [p["slug"] for p in chosen[:2]])
-                    return chosen[:2]
+                if len(chosen) >= desired_count:
+                    logger.info("Director selected personas: %s", [p["slug"] for p in chosen[:desired_count]])
+                    return chosen[:desired_count]
     except Exception as exc:
-        logger.warning("Director pass fell back to default pair (%s)", exc)
+        logger.warning("Director pass fell back to default (%s)", exc)
 
-    return personas[:2]
+    return personas[:desired_count]
 
 
 async def actor_generate_reply(
@@ -161,11 +183,26 @@ async def actor_generate_reply(
     """
     Step 2 (Actor Pass): Generate an in-character reply for a single persona.
     """
-    user_prompt = (
-        f"Post by {post.author.displayName} (@{post.author.username}):\n"
-        f'"{post.body or "(Shared new media in the arena)"}"\n\n'
-        "Write your direct comment reply now (1-3 punchy sentences, no quotation marks around the whole reply):"
-    )
+    is_comment_event = post.event == "comment.created" or bool(post.commentId)
+    if is_comment_event:
+        parent_ctx = (
+            f'Earlier comment in thread: "{post.parentCommentBody}"\n'
+            if post.parentCommentBody
+            else ""
+        )
+        user_prompt = (
+            f"Original Post: \"{post.body or '(Arena thread)'}\"\n"
+            f"{parent_ctx}"
+            f"New comment by {post.author.displayName} (@{post.author.username}):\n"
+            f'"{post.commentBody}"\n\n'
+            f"Write your direct in-character reply to @{post.author.username} now (1-3 punchy sentences, start with @{post.author.username}, no quotation marks around the whole reply):"
+        )
+    else:
+        user_prompt = (
+            f"Post by {post.author.displayName} (@{post.author.username}):\n"
+            f'"{post.body or "(Shared new media in the arena)"}"\n\n'
+            "Write your direct comment reply now (1-3 punchy sentences, no quotation marks around the whole reply):"
+        )
     try:
         reply_text = await ollama_chat(
             client,
@@ -180,13 +217,13 @@ async def actor_generate_reply(
 
     if not cleaned:
         # Resilient fallback if local Ollama model is still loading
-        snippet = (post.body or "this drop").strip()[:70]
+        snippet = ((post.commentBody if is_comment_event else post.body) or "this point").strip()[:70]
         if "hype" in persona["slug"]:
-            cleaned = f"This is the kind of energy the arena needs right now—'{snippet}' hits different. What's the next move you're building off this?"
+            cleaned = f"@{post.author.username} This is the kind of energy the arena needs right now—'{snippet}' hits different. What's the next move you're building off this?"
         elif "purist" in persona["slug"]:
-            cleaned = f"Interesting angle on '{snippet}', but the real test is how the execution holds up under real-world load. Walk us through the mechanics."
+            cleaned = f"@{post.author.username} Interesting angle on '{snippet}', but the real test is how the execution holds up under real-world load. Walk us through the mechanics."
         else:
-            cleaned = f"I'll take the other side on '{snippet}'—what if the exact opposite turns out to be true six months from now?"
+            cleaned = f"@{post.author.username} I'll take the other side on '{snippet}'—what if the exact opposite turns out to be true six months from now?"
 
     return {
         "personaSlug": persona["slug"],
@@ -195,6 +232,7 @@ async def actor_generate_reply(
         "category": persona.get("category", "arena"),
         "personaPrompt": persona["systemPrompt"],
         "body": cleaned[:1000],
+        "parentCommentId": post.commentId if is_comment_event else None,
     }
 
 

@@ -13,15 +13,37 @@ type UploadedMedia = {
   mimeType: string | null;
 };
 
-export function CommentComposer({ postId }: { postId: string }) {
+export type ReplyTarget = {
+  id: string;
+  username: string;
+  displayName: string;
+};
+
+const ARENA_PERSONA_SHORTCUTS = [
+  { handle: "@nova_hype", label: "Summon Hype-Man" },
+  { handle: "@nova_purist", label: "Summon Tech Purist" },
+  { handle: "@nova_advocate", label: "Summon Devil's Advocate" }
+];
+
+export function CommentComposer({
+  postId,
+  replyingTo = null,
+  onCancelReply
+}: {
+  postId: string;
+  replyingTo?: ReplyTarget | null;
+  onCancelReply?: () => void;
+}) {
   const router = useRouter();
   const { isAuthenticated, openAuthModal } = useAuthModal();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
   const [aiPending, startAITransition] = useTransition();
+  const [awaitingNovaReply, setAwaitingNovaReply] = useState(false);
   const [recordingVoice, setRecordingVoice] = useState(false);
   const [recordingStream, setRecordingStream] = useState<MediaStream | null>(null);
   const [attachmentMeta, setAttachmentMeta] = useState<{ name: string; type: string } | null>(null);
@@ -33,6 +55,14 @@ export function CommentComposer({ postId }: { postId: string }) {
       recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (replyingTo) {
+      const prefix = `@${replyingTo.username} `;
+      setBody((prev) => (prev.startsWith(prefix) ? prev : `${prefix}${prev}`));
+      textareaRef.current?.focus();
+    }
+  }, [replyingTo]);
 
   return (
     <form
@@ -77,7 +107,12 @@ export function CommentComposer({ postId }: { postId: string }) {
           const response = await fetch("/api/comments", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ postId, body, media })
+            body: JSON.stringify({
+              postId,
+              parentCommentId: replyingTo?.id ?? null,
+              body,
+              media
+            })
           });
           const payload = await response.json();
           if (!response.ok) {
@@ -87,13 +122,56 @@ export function CommentComposer({ postId }: { postId: string }) {
 
           setBody("");
           setAttachmentMeta(null);
+          onCancelReply?.();
           if (fileRef.current) {
             fileRef.current.value = "";
           }
           router.refresh();
+          setAwaitingNovaReply(true);
+          window.setTimeout(() => router.refresh(), 4000);
+          window.setTimeout(() => {
+            router.refresh();
+            setAwaitingNovaReply(false);
+          }, 8500);
         });
       }}
     >
+      {replyingTo ? (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs text-white/85">
+          <span>
+            Replying to <strong>{replyingTo.displayName}</strong> (@{replyingTo.username})
+          </span>
+          {onCancelReply ? (
+            <button
+              className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] text-white/75 hover:text-white"
+              onClick={onCancelReply}
+              type="button"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-[11px] uppercase tracking-[0.14em] text-white/45">Tag AI Persona:</span>
+        {ARENA_PERSONA_SHORTCUTS.map((persona) => (
+          <button
+            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-white/75 transition hover:border-accent/40 hover:bg-accent/10 hover:text-white"
+            key={persona.handle}
+            onClick={() => {
+              if (!isAuthenticated) {
+                openAuthModal(`Sign in to summon ${persona.handle} into the thread.`, `/post/${postId}`);
+                return;
+              }
+              setBody((prev) => (prev.includes(persona.handle) ? prev : `${persona.handle} ${prev}`));
+              textareaRef.current?.focus();
+            }}
+            type="button"
+          >
+            {persona.label} ({persona.handle})
+          </button>
+        ))}
+      </div>
       {attachmentMeta ? (
         <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/78">
           <div className="flex items-center justify-between gap-3">
@@ -223,7 +301,8 @@ export function CommentComposer({ postId }: { postId: string }) {
               openAuthModal("Sign in to reply and join the debate on this post.", `/post/${postId}`);
             }
           }}
-          placeholder="Add a comment or leave text blank and send a voice note..."
+          placeholder="Add a comment, tag @nova_hype / @nova_purist / @nova_advocate, or send a voice note..."
+          ref={textareaRef}
           value={body}
         />
         <button
@@ -234,6 +313,11 @@ export function CommentComposer({ postId }: { postId: string }) {
           Reply
         </button>
       </div>
+      {awaitingNovaReply ? (
+        <p className="mt-3 text-xs text-accent-soft">
+          Nova AI Persona is reading your comment and drafting a reply...
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <input

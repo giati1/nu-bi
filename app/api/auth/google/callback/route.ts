@@ -22,9 +22,24 @@ const STATE_COOKIE = "nubi_google_oauth_state";
 const NEXT_COOKIE = "nubi_google_oauth_next";
 const MODE_COOKIE = "nubi_google_oauth_mode";
 const GOOGLE_PROVIDER = "google";
+const ALLOWED_RELAY_ORIGINS = new Set([
+  "https://nu-bi.com",
+  "https://www.nu-bi.com"
+]);
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  const rawState = requestUrl.searchParams.get("state") ?? "";
+  const originMarkerIndex = rawState.indexOf("__origin__");
+  if (originMarkerIndex !== -1) {
+    const targetOrigin = rawState.slice(originMarkerIndex + "__origin__".length);
+    if (ALLOWED_RELAY_ORIGINS.has(targetOrigin) && requestUrl.origin !== targetOrigin) {
+      const relayUrl = new URL("/api/auth/google/callback", targetOrigin);
+      relayUrl.search = requestUrl.search;
+      return NextResponse.redirect(relayUrl.toString());
+    }
+  }
+
   const cookieStore = await cookies();
   const mode = readMode(cookieStore.get(MODE_COOKIE)?.value);
   const nextPath = sanitizeAuthNextPath(cookieStore.get(NEXT_COOKIE)?.value);

@@ -14,7 +14,7 @@
     "CLOUDFLARE_ENV": "production",
     "NEXT_PUBLIC_APP_URL": "https://nu-bi.com",
     "GOOGLE_CLIENT_ID": "273717790286-cs5jcma04nthbrai7edgcaii736mq1ob.apps.googleusercontent.com",
-    "GOOGLE_REDIRECT_URI": "https://nu-bi.com/api/auth/google/callback",
+    "GOOGLE_REDIRECT_URI": "https://nu-bi-preview.cedricfjohnson.workers.dev/api/auth/google/callback",
     "DATABASE_DRIVER": "d1",
     "STORAGE_DRIVER": "r2",
     "NEXT_PUBLIC_MEDIA_BASE_PATH": "/api/media",

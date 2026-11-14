@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"));
   const mode = sanitizeMode(url.searchParams.get("mode"));
-  const state = crypto.randomUUID();
+  const state = `${crypto.randomUUID()}__origin__${url.origin}`;
   const cookieStore = await cookies();
 
   const cookieOptions = {

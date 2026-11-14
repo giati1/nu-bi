@@ -136,6 +136,7 @@ export const storyEngagementSchema = z
 
 export const commentSchema = z.object({
   postId: z.string().uuid(),
+  parentCommentId: z.string().uuid().optional().nullable(),
   body: z.string().max(280).optional().default(""),
   media: z
     .array(

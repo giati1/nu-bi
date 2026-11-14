@@ -62,3 +62,6 @@ jobs:
 
       - name: Deploy production Worker
         run: npx wrangler deploy
+
+      - name: Deploy preview OAuth relay Worker
+        run: npx wrangler deploy --env preview
