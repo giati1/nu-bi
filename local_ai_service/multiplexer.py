@@ -41,7 +41,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PERSONAS_PATH = BASE_DIR / "personas.json"
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 ASSISTANT_MODEL = os.getenv("ASSISTANT_MODEL", "gemma3:4b")
 NUBI_API_BASE_URL = os.getenv("NUBI_API_BASE_URL", "https://nu-bi.com").rstrip("/")
 LOCAL_AGENT_SECRET = os.getenv(

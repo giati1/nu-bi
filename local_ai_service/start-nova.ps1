@@ -7,7 +7,7 @@ $TunnelConfig = "C:\Users\cedri_vq8ow\.cloudflared\config.yml"
 $TunnelId = "919069ce-03e2-42b7-8984-52f415479a16"
 
 $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-$env:OLLAMA_MODEL = "llama3.2:latest"
+$env:OLLAMA_MODEL = "gemma3:4b"
 $env:NUBI_API_BASE_URL = "https://nu-bi.com"
 $env:LOCAL_AGENT_SECRET = "ce7becd13e98e2c0b75aeb19843fa971a0bdbf1cec1a29eea433e7444f81da96"
 

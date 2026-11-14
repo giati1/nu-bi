@@ -8,6 +8,8 @@ import { getViewer } from "@/lib/auth/session";
 import { getDiscoveryFeed, getTrendingTags } from "@/lib/db/repository";
 import { cn, formatRelativeDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const viewer = await getViewer();
   const [posts, tags] = await Promise.all([
