@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { buildGoogleAuthUrl, isGoogleAuthConfigured } from "@/lib/auth/google";
-import { buildAuthRedirectUrl, sanitizeAuthNextPath } from "@/lib/auth/redirect";
+import { buildAuthRedirectUrl, resolveAuthBaseUrl, sanitizeAuthNextPath } from "@/lib/auth/redirect";
 import { shouldUseSecureCookies } from "@/lib/config/env";
 
 const STATE_COOKIE = "nubi_google_oauth_state";
@@ -16,7 +16,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"));
   const mode = sanitizeMode(url.searchParams.get("mode"));
-  const state = `${crypto.randomUUID()}__origin__${url.origin}`;
+  const publicOrigin = resolveAuthBaseUrl(request).origin;
+  const state = `${crypto.randomUUID()}__origin__${publicOrigin}`;
   const cookieStore = await cookies();
 
   const cookieOptions = {

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { buildAuthRedirectUrl, sanitizeAuthNextPath } from "@/lib/auth/redirect";
+import { buildAuthRedirectUrl, resolveAuthBaseUrl, sanitizeAuthNextPath } from "@/lib/auth/redirect";
 import { createAuthSession } from "@/lib/auth/session";
 import {
   createAvailableGoogleUsername,
@@ -29,11 +29,12 @@ const ALLOWED_RELAY_ORIGINS = new Set([
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  const currentPublicOrigin = resolveAuthBaseUrl(request).origin;
   const rawState = requestUrl.searchParams.get("state") ?? "";
   const originMarkerIndex = rawState.indexOf("__origin__");
   if (originMarkerIndex !== -1) {
     const targetOrigin = rawState.slice(originMarkerIndex + "__origin__".length);
-    if (ALLOWED_RELAY_ORIGINS.has(targetOrigin) && requestUrl.origin !== targetOrigin) {
+    if (ALLOWED_RELAY_ORIGINS.has(targetOrigin) && currentPublicOrigin !== targetOrigin) {
       const relayUrl = new URL("/api/auth/google/callback", targetOrigin);
       relayUrl.search = requestUrl.search;
       return NextResponse.redirect(relayUrl.toString());
