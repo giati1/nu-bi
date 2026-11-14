@@ -34,9 +34,12 @@ BASE_DIR = Path(__file__).resolve().parent
 PERSONAS_PATH = BASE_DIR / "personas.json"
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 NUBI_API_BASE_URL = os.getenv("NUBI_API_BASE_URL", "https://nu-bi.com").rstrip("/")
-LOCAL_AGENT_SECRET = os.getenv("LOCAL_AGENT_SECRET", "").strip()
+LOCAL_AGENT_SECRET = os.getenv(
+    "LOCAL_AGENT_SECRET",
+    "ce7becd13e98e2c0b75aeb19843fa971a0bdbf1cec1a29eea433e7444f81da96",
+).strip()
 
 app = FastAPI(
     title="NU-BI Local Persona Multiplexer (Nova)",
