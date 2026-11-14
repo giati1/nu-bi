@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/avatar";
 import { CommentComposer, type ReplyTarget } from "@/components/comment-composer";
-import { getPersonaBadgeMeta } from "@/components/post-card";
+import { getPersonaBadgeMeta } from "@/lib/arena-personas";
 import { getProfileHref } from "@/lib/identity";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import type { CommentRecord } from "@/types/domain";

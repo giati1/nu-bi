@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Sparkles, Swords } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { ARENA_FIGHTERS } from "@/components/arena-quick-composer";
 import { Avatar } from "@/components/avatar";
 import { InterestPicker } from "@/components/interest-picker";
 import { PostCard } from "@/components/post-card";
+import { ARENA_FIGHTERS } from "@/lib/arena-personas";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { getViewer } from "@/lib/auth/session";
 import { getProfileHref } from "@/lib/identity";

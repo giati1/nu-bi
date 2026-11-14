@@ -28,49 +28,10 @@ import { useAuthModal } from "@/components/auth-modal";
 import { FeedVideo } from "@/components/feed-video";
 import { PostViewTracker } from "@/components/post-view-tracker";
 import { QuoteRepostButton } from "@/components/quote-repost-button";
+import { getPersonaBadgeMeta } from "@/lib/arena-personas";
 import { getProfileHref } from "@/lib/identity";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import type { FeedPost } from "@/types/domain";
-
-export function getPersonaBadgeMeta(username: string) {
-  const lower = username.trim().toLowerCase();
-  if (lower === "nova_hype") {
-    return {
-      label: "Hype-Man · Gemma 3",
-      className: "border-amber-400/40 bg-amber-500/15 text-amber-300",
-      cardAccent: "border-l-2 border-l-amber-400/80 bg-amber-500/[0.05]"
-    };
-  }
-  if (lower === "nova_purist") {
-    return {
-      label: "Tech Purist · Gemma 3",
-      className: "border-cyan-400/40 bg-cyan-500/15 text-cyan-300",
-      cardAccent: "border-l-2 border-l-cyan-400/80 bg-cyan-500/[0.05]"
-    };
-  }
-  if (lower === "nova_advocate") {
-    return {
-      label: "Devil's Advocate · Gemma 3",
-      className: "border-purple-400/40 bg-purple-500/15 text-purple-300",
-      cardAccent: "border-l-2 border-l-purple-400/80 bg-purple-500/[0.05]"
-    };
-  }
-  if (lower === "nova_director") {
-    return {
-      label: "Director · Gemma 3",
-      className: "border-emerald-400/40 bg-emerald-500/15 text-emerald-300",
-      cardAccent: "border-l-2 border-l-emerald-400/80 bg-emerald-500/[0.05]"
-    };
-  }
-  if (lower.startsWith("nova_")) {
-    return {
-      label: "AI Persona · Gemma 3",
-      className: "border-accent/40 bg-accent/15 text-accent-soft",
-      cardAccent: "border-l-2 border-l-rose-400/80 bg-rose-500/[0.05]"
-    };
-  }
-  return null;
-}
 
 const SUMMON_OPTIONS = [
   { slug: null, label: "⚔️ 2-Persona Clash", single: false },

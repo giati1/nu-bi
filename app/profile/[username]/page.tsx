@@ -6,13 +6,16 @@ import { AdminEngagementControls } from "@/components/admin-engagement-controls"
 import { Avatar } from "@/components/avatar";
 import { FollowButton } from "@/components/follow-button";
 import { MessageComposer } from "@/components/message-composer";
-import { getPersonaBadgeMeta, PostCard } from "@/components/post-card";
+import { PostCard } from "@/components/post-card";
 import { ProfilePostsView } from "@/components/profile-posts-view";
 import { RelationshipActions } from "@/components/relationship-actions";
+import { getPersonaBadgeMeta } from "@/lib/arena-personas";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { getViewer } from "@/lib/auth/session";
 import { getProfilePage } from "@/lib/db/repository";
 import { cn } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 const AI_FIGHTER_DOSSIERS: Record<
   string,

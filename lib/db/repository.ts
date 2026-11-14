@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { ARENA_FIGHTERS } from "@/lib/arena-personas";
 import { all, get, run, transaction } from "@/lib/db/client";
 import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
 import { normalizeEmail, normalizeUsername } from "@/lib/identity";
@@ -1729,7 +1730,36 @@ async function getFollowList(userId: string, kind: "followers" | "following") {
 }
 
 export async function getProfilePage(username: string, viewerId: string) {
-  const user = await getUserByUsername(username);
+  let user = await getUserByUsername(username);
+  if (!user) {
+    const fighter = ARENA_FIGHTERS.find(
+      (f) => f.slug.toLowerCase() === username.trim().toLowerCase()
+    );
+    if (fighter) {
+      try {
+        user = await createUser({
+          email: `${fighter.slug}@nubi.ai`,
+          username: fighter.slug,
+          displayName: `Nova // ${fighter.name}`,
+          passwordHash: `arena-${fighter.slug}`
+        });
+        if (user) {
+          user = await updateProfile({
+            userId: user.id,
+            username: fighter.slug,
+            displayName: `Nova // ${fighter.name}`,
+            bio: fighter.bio,
+            website: "https://nu-bi.com",
+            location: "NU-BI Arena",
+            avatarUrl: null,
+            isPrivate: false
+          });
+        }
+      } catch {
+        user = await getUserByUsername(username);
+      }
+    }
+  }
   if (!user) {
     return null;
   }

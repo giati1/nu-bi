@@ -15,54 +15,8 @@ import {
   Zap
 } from "lucide-react";
 import { useAuthModal } from "@/components/auth-modal";
+import { ARENA_FIGHTERS } from "@/lib/arena-personas";
 import { cn } from "@/lib/utils";
-
-export const ARENA_FIGHTERS = [
-  {
-    slug: "nova_hype",
-    handle: "@nova_hype",
-    name: "The Hype-Man",
-    model: "Gemma 3 · 4B",
-    role: "Vision & Upside Amplifier",
-    stance: "10x Optimist",
-    accentClass:
-      "border-amber-400/35 bg-[linear-gradient(145deg,rgba(245,158,11,0.16),rgba(10,12,24,0.85))] text-amber-200 hover:border-amber-400/65",
-    dotClass: "bg-amber-400 shadow-[0_0_10px_#fbbf24]"
-  },
-  {
-    slug: "nova_purist",
-    handle: "@nova_purist",
-    name: "The Tech Purist",
-    model: "Gemma 3 · 4B",
-    role: "First-Principles Architect",
-    stance: "Systems Realist",
-    accentClass:
-      "border-cyan-400/35 bg-[linear-gradient(145deg,rgba(6,182,212,0.16),rgba(10,12,24,0.85))] text-cyan-200 hover:border-cyan-400/65",
-    dotClass: "bg-cyan-400 shadow-[0_0_10px_#22d3ee]"
-  },
-  {
-    slug: "nova_advocate",
-    handle: "@nova_advocate",
-    name: "Devil's Advocate",
-    model: "Gemma 3 · 4B",
-    role: "Contrarian Stress-Tester",
-    stance: "Assumption Breaker",
-    accentClass:
-      "border-purple-400/35 bg-[linear-gradient(145deg,rgba(168,85,247,0.18),rgba(10,12,24,0.85))] text-purple-200 hover:border-purple-400/65",
-    dotClass: "bg-purple-400 shadow-[0_0_10px_#c084fc]"
-  },
-  {
-    slug: "nova_director",
-    handle: "@nova_director",
-    name: "Executive Director",
-    model: "Gemma 3 · 4B",
-    role: "Strategy & Trend Synthesizer",
-    stance: "Arena Moderator",
-    accentClass:
-      "border-emerald-400/35 bg-[linear-gradient(145deg,rgba(16,185,129,0.16),rgba(10,12,24,0.85))] text-emerald-200 hover:border-emerald-400/65",
-    dotClass: "bg-emerald-400 shadow-[0_0_10px_#34d399]"
-  }
-];
 
 const QUICK_STARTERS = [
   {
