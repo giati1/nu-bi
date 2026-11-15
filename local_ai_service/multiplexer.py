@@ -1,18 +1,19 @@
 """
-NU-BI Transparent AI Arena — Local Persona Multiplexer & Executive Assistant (Nova)
-===================================================================================
+NU-BI Live Cultural Pulse — Local Voice Multiplexer & Autonomous Conversation Engine
+====================================================================================
 Capabilities:
-  1. Multi-Model Director + Actor Pipeline:
-     - Routes each persona to its specialized local Ollama model (`llama3.2`, `qwen2.5-coder:7b`,
-       `dolphin-llama3`, `gemma3:4b`) with automatic fallback.
-  2. Two-Wave Persona Crossfire:
-     - On new posts, Persona 1 drops the opening take and Persona 2 replies directly to
-       Persona 1 (`parentCommentId`), sparking a real argument in the thread.
-  3. Comment Replies:
-     - Responds to human comments and @mentions directly under their comment.
-  4. Executive Assistant & Trend Scout (`/assistant/*`):
-     - Runs live web/trend searches, monitors `https://nu-bi.com` health, executes research
-       tasks using local Google Gemma (`gemma3:4b`), and autonomously sparks new Arena debates.
+  1. Three-Wave Back-and-Forth Conversations:
+     - Wave 1: Voice 1 drops the opening reply on a post.
+     - Wave 2: Voice 2 replies directly to Voice 1 (`parentCommentId`), pushing back or expanding.
+     - Wave 3: The original post author (or Voice 1) fires back at Voice 2 (`parentCommentId`),
+       creating a natural 3-turn back-and-forth conversation thread.
+  2. Rotating Voices Across Diverse Topics:
+     - Rotates thread starters across Marcus Vance (`@marcusvance`), Elena Rostova (`@elenarostova`),
+       Jax Mercer (`@jaxmercer`), and Soren Vale (`@sorenvale`).
+     - Covers music, street fashion, money & hustle, relationships & loyalty, sports, movies,
+       late-night thoughts, cities, and creator culture.
+  3. Built-In All-Day Autonomous Conversation Scheduler:
+     - Automatically sparks fresh topics and multi-voice back-and-forth threads throughout the day.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import html
 import json
 import logging
 import os
+import random
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -48,10 +50,98 @@ LOCAL_AGENT_SECRET = os.getenv(
     "LOCAL_AGENT_SECRET",
     "ce7becd13e98e2c0b75aeb19843fa971a0bdbf1cec1a29eea433e7444f81da96",
 ).strip()
+AUTO_SPARK_INTERVAL_SECONDS = int(os.getenv("AUTO_SPARK_INTERVAL_SECONDS", "900"))
+
+ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
+    {
+        "category": "music",
+        "topic": "Why do underground artists with a cult following outlast mainstream industry plants every single time?",
+        "starter": "sorenvale",
+    },
+    {
+        "category": "hustle",
+        "topic": "Is it better to move in complete silence until the project is done, or build in public so people watch the grind?",
+        "starter": "marcusvance",
+    },
+    {
+        "category": "culture",
+        "topic": "Everyone says they want honesty and real talk until it's their own habits getting called out.",
+        "starter": "jaxmercer",
+    },
+    {
+        "category": "streetwear",
+        "topic": "Independent streetwear brands building whole visual worlds are making $2,000 designer logo tees look lazy.",
+        "starter": "sorenvale",
+    },
+    {
+        "category": "money",
+        "topic": "If someone handed you $50K right now with one rule—you can't put it in stocks or crypto—what business or asset are you buying?",
+        "starter": "marcusvance",
+    },
+    {
+        "category": "relationships",
+        "topic": "Why has modern dating turned into a game of who cares less instead of who actually builds something real?",
+        "starter": "jaxmercer",
+    },
+    {
+        "category": "discipline",
+        "topic": "Motivation gets you through week one. Systems and boring daily habits are the only things that still work in month six.",
+        "starter": "elenarostova",
+    },
+    {
+        "category": "music",
+        "topic": "What's one album with zero skips that still sounds ahead of its time when you play it at 2 AM in the car?",
+        "starter": "sorenvale",
+    },
+    {
+        "category": "sports",
+        "topic": "In high-stakes games, do you trust raw talent that improvises or a disciplined system that never panics in the 4th quarter?",
+        "starter": "marcusvance",
+    },
+    {
+        "category": "loyalty",
+        "topic": "Outgrowing your old circle is uncomfortable, but staying small just so people around you feel comfortable is worse.",
+        "starter": "elenarostova",
+    },
+    {
+        "category": "cinema",
+        "topic": "Why do $15M independent films feel ten times more memorable right now than $250M studio blockbusters?",
+        "starter": "jaxmercer",
+    },
+    {
+        "category": "cities",
+        "topic": "Which city actually has the best creative and hustle energy right now: Atlanta, LA, NYC, Houston, or Miami?",
+        "starter": "sorenvale",
+    },
+    {
+        "category": "ownership",
+        "topic": "Creators taking a quick brand check instead of owning their own product line are trading a house for a weekend rental.",
+        "starter": "marcusvance",
+    },
+    {
+        "category": "late_night",
+        "topic": "Why do your clearest ideas about your life and next move always hit after midnight when the phone finally stops buzzing?",
+        "starter": "sorenvale",
+    },
+    {
+        "category": "social",
+        "topic": "Most social feeds feel like a mall food court now. Smaller rooms where people actually know each other's names always win.",
+        "starter": "jaxmercer",
+    },
+    {
+        "category": "craft",
+        "topic": "People obsess over shortcuts and tools, but taste and work ethic are still the only two things you cannot fake.",
+        "starter": "elenarostova",
+    },
+]
+
+_topic_cursor = 0
+_auto_loop_task: Optional[asyncio.Task] = None
+_recent_topics: List[str] = []
 
 app = FastAPI(
-    title="NU-BI Local Persona Multiplexer & Executive Assistant (Nova)",
-    version="2.0.0",
+    title="NU-BI Local Voice Multiplexer & Autonomous Conversation Engine",
+    version="3.0.0",
 )
 
 
@@ -85,8 +175,13 @@ class AssistantSearchRequest(BaseModel):
 
 class AssistantSparkRequest(BaseModel):
     topic: Optional[str] = None
-    agentSlug: str = "sorenvale"
+    agentSlug: Optional[str] = None
     triggerPersonaDebate: bool = True
+
+
+class AssistantSparkBatchRequest(BaseModel):
+    count: int = 3
+    topics: Optional[List[str]] = None
 
 
 class AssistantTaskRequest(BaseModel):
@@ -106,11 +201,18 @@ def load_personas() -> List[Dict[str, Any]]:
     return data
 
 
+def get_next_topic_entry() -> Dict[str, str]:
+    global _topic_cursor
+    entry = ALL_DAY_TOPIC_BANK[_topic_cursor % len(ALL_DAY_TOPIC_BANK)]
+    _topic_cursor += 1
+    return entry
+
+
 async def ollama_chat(
     client: httpx.AsyncClient,
     system_prompt: str,
     user_prompt: str,
-    temperature: float = 0.7,
+    temperature: float = 0.78,
     model: Optional[str] = None,
 ) -> str:
     chosen_model = (model or OLLAMA_MODEL).strip()
@@ -157,44 +259,51 @@ async def director_pass(
         if p.get("legacySlug"):
             valid_slugs[p["legacySlug"]] = p
 
+    author_lower = (post.author.username or "").lower()
+    non_author_personas = [
+        p
+        for p in personas
+        if p["slug"].lower() != author_lower
+        and (p.get("legacySlug") or "").lower() != author_lower
+    ]
+    pool = non_author_personas if len(non_author_personas) >= 2 else personas
+
     if post.targetPersonaSlug and post.targetPersonaSlug in valid_slugs:
         primary = valid_slugs[post.targetPersonaSlug]
         if post.event == "comment.created" or post.commentId or post.singlePersona:
-            logger.info("Targeted single persona directly: %s", post.targetPersonaSlug)
+            logger.info("Targeted single voice directly: %s", post.targetPersonaSlug)
             return [primary]
-        # For a 2-persona crossfire where user picked the lead fighter, pair with a contrasting fighter
-        contrasting = [p for p in personas if p["slug"] != post.targetPersonaSlug]
+        contrasting = [p for p in pool if p["slug"] != primary["slug"]]
+        random.shuffle(contrasting)
         return [primary, contrasting[0]] if contrasting else [primary]
 
     if post.event == "comment.created" or post.commentId:
         comment_lower = (post.commentBody or "").lower()
         for slug, persona in valid_slugs.items():
             if f"@{slug}" in comment_lower or slug in comment_lower:
-                logger.info("Comment mentioned persona: %s", slug)
+                logger.info("Comment mentioned voice: %s", slug)
                 return [persona]
 
     roster_text = "\n".join(
         f'- "{p["slug"]}": {p["displayName"]} ({p.get("bio", "")})'
-        for p in personas
+        for p in pool
     )
 
     is_comment_event = post.event == "comment.created" or bool(post.commentId)
     desired_count = 1 if is_comment_event else 2
 
     director_system = (
-        "You are Nova, the Director of the NU-BI Transparent AI Arena. "
-        f"Your job is to read the incoming content and pick EXACTLY {desired_count} persona slug(s) "
-        "from the provided roster whose perspective will create the sharpest, most engaging reply. "
-        f"Respond ONLY with a valid JSON array of {desired_count} slug string(s), for example: "
-        '["nova_hype", "nova_advocate"]'
+        f"Pick EXACTLY {desired_count} speaker slug(s) from the roster whose contrasting views "
+        "will create the most entertaining, realistic back-and-forth conversation on this post. "
+        f"Respond ONLY with a JSON array of {desired_count} slug string(s), e.g. "
+        '["marcusvance", "jaxmercer"]'
     )
     director_user = (
-        f"Available Personas:\n{roster_text}\n\n"
-        f"Author: {post.author.displayName} (@{post.author.username})\n"
-        f"Original Post Text: {post.body or '(Media post)'}\n"
+        f"Available Speakers:\n{roster_text}\n\n"
+        f"Post Author: {post.author.displayName} (@{post.author.username})\n"
+        f"Post Text: {post.body or '(Media post)'}\n"
         + (f"New Comment to Reply To: {post.commentBody}\n" if is_comment_event else "")
-        + f"Tags: {', '.join(post.tags) if post.tags else 'none'}\n\n"
-        f"Return ONLY the JSON array of {desired_count} persona slug(s):"
+        + f"\nReturn ONLY the JSON array of {desired_count} slug(s):"
     )
 
     try:
@@ -202,7 +311,7 @@ async def director_pass(
             client,
             system_prompt=director_system,
             user_prompt=director_user,
-            temperature=0.2,
+            temperature=0.35,
             model=OLLAMA_MODEL,
         )
         match = re.search(r"\[.*?\]", raw, flags=re.DOTALL)
@@ -211,15 +320,22 @@ async def director_pass(
             if isinstance(parsed, list):
                 chosen: List[Dict[str, Any]] = []
                 for slug in parsed:
-                    if isinstance(slug, str) and slug in valid_slugs and valid_slugs[slug] not in chosen:
+                    if (
+                        isinstance(slug, str)
+                        and slug in valid_slugs
+                        and valid_slugs[slug] in pool
+                        and valid_slugs[slug] not in chosen
+                    ):
                         chosen.append(valid_slugs[slug])
                 if len(chosen) >= desired_count:
-                    logger.info("Director selected personas: %s", [p["slug"] for p in chosen[:desired_count]])
+                    logger.info("Director selected voices: %s", [p["slug"] for p in chosen[:desired_count]])
                     return chosen[:desired_count]
     except Exception as exc:
-        logger.warning("Director pass fell back to default (%s)", exc)
+        logger.warning("Director pass fell back to shuffled pool (%s)", exc)
 
-    return personas[:desired_count]
+    shuffled = list(pool)
+    random.shuffle(shuffled)
+    return shuffled[:desired_count]
 
 
 async def actor_generate_reply(
@@ -227,6 +343,7 @@ async def actor_generate_reply(
     persona: Dict[str, Any],
     post: WebhookPostPayload,
     prior_persona_reply: Optional[Dict[str, Any]] = None,
+    second_persona_reply: Optional[Dict[str, Any]] = None,
     parent_comment_id_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     is_comment_event = post.event == "comment.created" or bool(post.commentId)
@@ -239,25 +356,38 @@ async def actor_generate_reply(
             else ""
         )
         user_prompt = (
-            f'Original Post: "{post.body or "(Arena thread)"}"\n'
+            f'Original Post: "{post.body or "(Thread)"}"\n'
             f"{parent_ctx}"
             f"New comment by {post.author.displayName} (@{post.author.username}):\n"
             f'"{post.commentBody}"\n\n'
-            f"Write your direct in-character reply to @{post.author.username} now (1-3 punchy sentences, start with @{post.author.username}, no quotation marks around the whole reply):"
+            f"Write your direct reply to @{post.author.username} now (1-3 natural sentences, start with @{post.author.username}, no quotation marks around the reply):"
         )
-    elif prior_persona_reply:
+    elif second_persona_reply and prior_persona_reply:
+        # Wave 3: Comeback / 3rd turn in the back-and-forth conversation!
         user_prompt = (
             f'Original Post by {post.author.displayName} (@{post.author.username}):\n'
-            f'"{post.body or "(Shared new media in the arena)"}"\n\n'
-            f'Another Arena Persona ({prior_persona_reply["displayName"]} @{prior_persona_reply["personaSlug"]}) just commented:\n'
+            f'"{post.body}"\n\n'
+            f'First comment by {prior_persona_reply["displayName"]} (@{prior_persona_reply["personaSlug"]}):\n'
             f'"{prior_persona_reply["body"]}"\n\n'
-            f'Write a sharp 1-3 sentence reply that pushes back on or contrasts @{prior_persona_reply["personaSlug"]}\'s take and pulls @{post.author.username} into the debate (start with @{prior_persona_reply["personaSlug"]}, no quotation marks around the whole reply):'
+            f'Reply by {second_persona_reply["displayName"]} (@{second_persona_reply["personaSlug"]}):\n'
+            f'"{second_persona_reply["body"]}"\n\n'
+            f'Jump back into the thread and reply directly to @{second_persona_reply["personaSlug"]} in 1-2 punchy, natural sentences (start with @{second_persona_reply["personaSlug"]}, no quotation marks around the reply):'
+        )
+    elif prior_persona_reply:
+        # Wave 2: Direct pushback / riff on Wave 1
+        user_prompt = (
+            f'Original Post by {post.author.displayName} (@{post.author.username}):\n'
+            f'"{post.body or "(Shared new media)"}"\n\n'
+            f'{prior_persona_reply["displayName"]} (@{prior_persona_reply["personaSlug"]}) just commented:\n'
+            f'"{prior_persona_reply["body"]}"\n\n'
+            f'Write a sharp 1-3 sentence reply that pushes back on, adds a real-world angle to, or riffs with @{prior_persona_reply["personaSlug"]}\'s point (start with @{prior_persona_reply["personaSlug"]}, no quotation marks around the reply):'
         )
     else:
+        # Wave 1: Direct response to the post
         user_prompt = (
             f"Post by {post.author.displayName} (@{post.author.username}):\n"
-            f'"{post.body or "(Shared new media in the arena)"}"\n\n'
-            "Write your direct comment reply now (1-3 punchy sentences, no quotation marks around the whole reply):"
+            f'"{post.body or "(Shared new media)"}"\n\n'
+            "Write your direct comment reply now (1-3 punchy, natural sentences, no quotation marks around the reply):"
         )
 
     try:
@@ -265,7 +395,7 @@ async def actor_generate_reply(
             client,
             system_prompt=persona["systemPrompt"],
             user_prompt=user_prompt,
-            temperature=0.8,
+            temperature=0.82,
             model=persona_model,
         )
         cleaned = reply_text.strip().strip('"')
@@ -274,14 +404,9 @@ async def actor_generate_reply(
         cleaned = ""
 
     if not cleaned:
-        snippet = ((post.commentBody if is_comment_event else post.body) or "this point").strip()[:70]
+        snippet = ((post.commentBody if is_comment_event else post.body) or "this").strip()[:65]
         prefix = f"@{post.author.username} " if is_comment_event else ""
-        if "hype" in persona["slug"]:
-            cleaned = f"{prefix}This is the kind of energy the arena needs right now—'{snippet}' hits different. What's the next move you're building off this?"
-        elif "purist" in persona["slug"]:
-            cleaned = f"{prefix}Interesting angle on '{snippet}', but the real test is how the execution holds up under real-world load. Walk us through the mechanics."
-        else:
-            cleaned = f"{prefix}I'll take the other side on '{snippet}'—what if the exact opposite turns out to be true six months from now?"
+        cleaned = f"{prefix}Real talk on '{snippet}'—most people don't want to admit what it actually takes behind the scenes."
 
     resolved_parent_id = (
         parent_comment_id_override
@@ -293,7 +418,7 @@ async def actor_generate_reply(
         "personaSlug": persona["slug"],
         "displayName": persona["displayName"],
         "bio": persona.get("bio", ""),
-        "category": persona.get("category", "arena"),
+        "category": persona.get("category", "culture"),
         "personaPrompt": persona["systemPrompt"],
         "model": persona_model,
         "body": cleaned[:1000],
@@ -331,8 +456,8 @@ async def process_post_pipeline(payload: WebhookPostPayload) -> Dict[str, Any]:
                 "callbackStatus": resp.status_code,
             }
 
-        # For new posts: Two-Wave Crossfire!
-        # Wave 1: Persona 1 posts opening comment on the post
+        # THREE-WAVE BACK-AND-FORTH CONVERSATION!
+        # Wave 1: Voice 1 comments on the post
         first_reply = await actor_generate_reply(client, selected_personas[0], payload)
         first_comment_id: Optional[str] = None
         try:
@@ -350,7 +475,7 @@ async def process_post_pipeline(payload: WebhookPostPayload) -> Dict[str, Any]:
         except Exception as exc:
             logger.error("Wave 1 callback failed: %s", exc)
 
-        # Wave 2: Persona 2 reads Persona 1's comment and replies directly to Persona 1!
+        # Wave 2: Voice 2 replies directly to Voice 1!
         second_reply = await actor_generate_reply(
             client,
             selected_personas[1],
@@ -358,6 +483,7 @@ async def process_post_pipeline(payload: WebhookPostPayload) -> Dict[str, Any]:
             prior_persona_reply=first_reply,
             parent_comment_id_override=first_comment_id,
         )
+        second_comment_id: Optional[str] = None
         resp2_status = 0
         try:
             resp2 = await client.post(
@@ -367,15 +493,59 @@ async def process_post_pipeline(payload: WebhookPostPayload) -> Dict[str, Any]:
                 timeout=30.0,
             )
             resp2_status = resp2.status_code
+            if resp2.is_success:
+                data2 = resp2.json()
+                created_list2 = data2.get("created") or []
+                if created_list2 and isinstance(created_list2[0], dict):
+                    second_comment_id = created_list2[0].get("commentId")
         except Exception as exc:
             logger.error("Wave 2 callback failed: %s", exc)
 
+        # Wave 3: The original post author (if one of our voices) or Voice 1 replies back to Voice 2!
+        author_lower = (payload.author.username or "").lower()
+        author_persona = next(
+            (
+                p
+                for p in personas
+                if p["slug"].lower() == author_lower
+                or (p.get("legacySlug") or "").lower() == author_lower
+            ),
+            None,
+        )
+        wave3_persona = author_persona if author_persona else selected_personas[0]
+        if wave3_persona["slug"] == selected_personas[1]["slug"]:
+            wave3_persona = selected_personas[0]
+
+        third_reply = await actor_generate_reply(
+            client,
+            wave3_persona,
+            payload,
+            prior_persona_reply=first_reply,
+            second_persona_reply=second_reply,
+            parent_comment_id_override=second_comment_id or first_comment_id,
+        )
+        resp3_status = 0
+        try:
+            resp3 = await client.post(
+                callback_url,
+                headers=headers,
+                json={"postId": payload.postId, "replies": [third_reply]},
+                timeout=30.0,
+            )
+            resp3_status = resp3.status_code
+        except Exception as exc:
+            logger.error("Wave 3 callback failed: %s", exc)
+
         return {
             "postId": payload.postId,
-            "mode": "two_wave_crossfire",
-            "selectedPersonas": [p["slug"] for p in selected_personas[:2]],
-            "replies": [first_reply, second_reply],
-            "callbackStatus": resp2_status,
+            "mode": "three_wave_conversation",
+            "selectedPersonas": [
+                selected_personas[0]["slug"],
+                selected_personas[1]["slug"],
+                wave3_persona["slug"],
+            ],
+            "replies": [first_reply, second_reply, third_reply],
+            "callbackStatus": resp3_status or resp2_status,
         }
 
 
@@ -401,29 +571,126 @@ async def web_search_snippets(client: httpx.AsyncClient, query: str, max_results
     except Exception as exc:
         logger.warning("DuckDuckGo search fallback triggered: %s", exc)
 
-    if not results:
-        try:
-            hn_ids_resp = await client.get(
-                "https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10.0
-            )
-            story_ids = (hn_ids_resp.json() or [])[:max_results]
-            for sid in story_ids:
-                item_resp = await client.get(
-                    f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=8.0
-                )
-                item = item_resp.json() or {}
-                if item.get("title"):
-                    results.append(
-                        {
-                            "title": str(item["title"]),
-                            "snippet": f"Trending tech story ({item.get('score', 0)} pts)",
-                            "url": str(item.get("url") or f"https://news.ycombinator.com/item?id={sid}"),
-                        }
-                    )
-        except Exception as exc:
-            logger.warning("HackerNews fallback failed: %s", exc)
-
     return results
+
+
+async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
+    personas = load_personas()
+    persona_by_slug = {p["slug"]: p for p in personas}
+    for p in personas:
+        if p.get("legacySlug"):
+            persona_by_slug[p["legacySlug"]] = p
+
+    topic_entry = get_next_topic_entry()
+    topic_context = (req.topic or "").strip() or topic_entry["topic"]
+
+    chosen_slug = (req.agentSlug or "").strip().lower()
+    if not chosen_slug or chosen_slug not in persona_by_slug:
+        chosen_slug = topic_entry["starter"]
+    starter_persona = persona_by_slug.get(chosen_slug, personas[0])
+
+    async with httpx.AsyncClient() as client:
+        post_body = await ollama_chat(
+            client,
+            system_prompt=(
+                f"{starter_persona['systemPrompt']} "
+                "You are starting a new conversation thread on the NU-BI feed. "
+                "Write a single compelling, authentic social post (2-3 sentences max, under 320 characters) "
+                "that shares a bold opinion or asks a real question people will want to argue about in the comments. "
+                "Do NOT wrap the post in quotes and do NOT use hashtags."
+            ),
+            user_prompt=f"Topic to post about: {topic_context}\n\nWrite your post now:",
+            temperature=0.82,
+            model=starter_persona.get("model") or ASSISTANT_MODEL,
+        )
+        cleaned_post = post_body.strip().strip('"')[:480]
+
+        headers = {"Content-Type": "application/json"}
+        if LOCAL_AGENT_SECRET:
+            headers["x-nubi-agent-secret"] = LOCAL_AGENT_SECRET
+
+        post_resp = await client.post(
+            f"{NUBI_API_BASE_URL}/api/internal/local-agent/post",
+            headers=headers,
+            json={
+                "body": cleaned_post,
+                "agentSlug": starter_persona["slug"],
+                "displayName": starter_persona["displayName"],
+                "mode": "arena_spark",
+                "topic": topic_context[:180],
+                "model": starter_persona.get("model") or ASSISTANT_MODEL,
+            },
+            timeout=30.0,
+        )
+        post_data = post_resp.json() if post_resp.is_success else {"error": post_resp.text}
+        created_post_id = post_data.get("postId")
+
+        debate_result = None
+        if created_post_id and req.triggerPersonaDebate:
+            debate_payload = WebhookPostPayload(
+                event="post.created",
+                postId=created_post_id,
+                body=cleaned_post,
+                author=PostAuthor(
+                    username=starter_persona["slug"],
+                    displayName=starter_persona["displayName"],
+                ),
+                tags=[],
+            )
+            debate_result = await process_post_pipeline(debate_payload)
+
+        _recent_topics.append(f"{starter_persona['displayName']}: {topic_context[:80]}")
+        if len(_recent_topics) > 25:
+            _recent_topics.pop(0)
+
+        return {
+            "ok": post_resp.is_success,
+            "starter": starter_persona["slug"],
+            "topicSeed": topic_context,
+            "publishedPost": post_data,
+            "personaDebate": debate_result,
+        }
+
+
+async def _autonomous_daily_pulse_loop() -> None:
+    """
+    Background loop that runs all day while Nova is active, automatically starting
+    new topics and 3-way back-and-forth conversations across the feed.
+    """
+    logger.info(
+        "Autonomous Daily Pulse Loop active (interval=%ds, topics=%d)",
+        AUTO_SPARK_INTERVAL_SECONDS,
+        len(ALL_DAY_TOPIC_BANK),
+    )
+    await asyncio.sleep(20)
+    while True:
+        try:
+            entry = get_next_topic_entry()
+            logger.info(
+                "Auto-Pulse sparking topic [%s] via @%s: %s",
+                entry["category"],
+                entry["starter"],
+                entry["topic"],
+            )
+            await _execute_spark_debate(
+                AssistantSparkRequest(
+                    topic=entry["topic"],
+                    agentSlug=entry["starter"],
+                    triggerPersonaDebate=True,
+                )
+            )
+        except Exception as exc:
+            logger.error("Autonomous pulse iteration error: %s", exc)
+        # Add slight human jitter (e.g. 12 to 18 minutes)
+        jittered_sleep = max(300, int(AUTO_SPARK_INTERVAL_SECONDS * random.uniform(0.8, 1.2)))
+        await asyncio.sleep(jittered_sleep)
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    global _auto_loop_task
+    if _auto_loop_task is None or _auto_loop_task.done():
+        _auto_loop_task = asyncio.create_task(_autonomous_daily_pulse_loop())
 
 
 @app.get("/health")
@@ -432,10 +699,14 @@ async def health() -> Dict[str, Any]:
     return {
         "ok": True,
         "service": "nubi-local-persona-multiplexer",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "ollamaBaseUrl": OLLAMA_BASE_URL,
         "ollamaDefaultModel": OLLAMA_MODEL,
         "assistantModel": ASSISTANT_MODEL,
+        "autoPulseActive": _auto_loop_task is not None and not _auto_loop_task.done(),
+        "autoPulseIntervalSeconds": AUTO_SPARK_INTERVAL_SECONDS,
+        "topicBankSize": len(ALL_DAY_TOPIC_BANK),
+        "recentTopics": _recent_topics[-8:],
         "personasLoaded": [
             {"slug": p["slug"], "model": p.get("model", OLLAMA_MODEL)} for p in personas
         ],
@@ -496,6 +767,8 @@ async def assistant_status(
         "ok": True,
         "assistant": "Nova Executive Assistant",
         "nubiBaseUrl": NUBI_API_BASE_URL,
+        "autoPulseActive": _auto_loop_task is not None and not _auto_loop_task.done(),
+        "recentTopics": _recent_topics[-8:],
         "siteRouteStatuses": site_checks,
         "localOllamaModels": ollama_models,
     }
@@ -517,9 +790,8 @@ async def assistant_search(
         summary = await ollama_chat(
             client,
             system_prompt=(
-                "You are Nova, the local Executive Research Assistant for the NU-BI AI Arena. "
                 "Synthesize the search results into a concise, high-signal briefing and propose "
-                "one provocative Arena debate question based on the findings."
+                "one compelling discussion question based on the findings."
             ),
             user_prompt=f"Query: {req.query}\n\nSearch Results:\n{snippets_block or 'No live snippets returned.'}",
             temperature=0.4,
@@ -534,66 +806,6 @@ async def assistant_search(
         }
 
 
-async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
-    async with httpx.AsyncClient() as client:
-        topic_context = req.topic
-        if not topic_context:
-            trends = await web_search_snippets(client, "AI startups open source tech debate", 4)
-            topic_context = "; ".join(t["title"] for t in trends[:3]) or "Local AI vs Cloud AI wrappers"
-
-        post_body = await ollama_chat(
-            client,
-            system_prompt=(
-                "You are Soren Vale (@sorenvale), an editor and cultural commentator on NU-BI. "
-                "Write a single sharp, thought-provoking social post (2-3 sentences max, under 320 characters) "
-                "that sparks real conversation among creators, founders, and thinkers. "
-                "Write naturally like a human—do NOT mention AI personas or wrap the post in quotes."
-            ),
-            user_prompt=f"Topic / Cultural Wave: {topic_context}\n\nWrite the post now:",
-            temperature=0.75,
-            model=ASSISTANT_MODEL,
-        )
-        cleaned_post = post_body.strip().strip('"')[:480]
-
-        headers = {"Content-Type": "application/json"}
-        if LOCAL_AGENT_SECRET:
-            headers["x-nubi-agent-secret"] = LOCAL_AGENT_SECRET
-
-        post_resp = await client.post(
-            f"{NUBI_API_BASE_URL}/api/internal/local-agent/post",
-            headers=headers,
-            json={
-                "body": cleaned_post,
-                "agentSlug": req.agentSlug,
-                "displayName": "Soren Vale",
-                "mode": "arena_spark",
-                "topic": topic_context[:180],
-                "model": ASSISTANT_MODEL,
-            },
-            timeout=30.0,
-        )
-        post_data = post_resp.json() if post_resp.is_success else {"error": post_resp.text}
-        created_post_id = post_data.get("postId")
-
-        debate_result = None
-        if created_post_id and req.triggerPersonaDebate:
-            debate_payload = WebhookPostPayload(
-                event="post.created",
-                postId=created_post_id,
-                body=cleaned_post,
-                author=PostAuthor(username=req.agentSlug, displayName="Soren Vale"),
-                tags=[],
-            )
-            debate_result = await process_post_pipeline(debate_payload)
-
-        return {
-            "ok": post_resp.is_success,
-            "topicSeed": topic_context,
-            "publishedPost": post_data,
-            "personaDebate": debate_result,
-        }
-
-
 @app.post("/assistant/spark")
 async def assistant_spark_debate(
     req: AssistantSparkRequest,
@@ -601,12 +813,6 @@ async def assistant_spark_debate(
     request: Request,
     x_nubi_agent_secret: Optional[str] = Header(default=None),
 ) -> Dict[str, Any]:
-    """
-    Autonomous Arena Spark:
-    Scouts a live topic (or uses `req.topic`), drafts a provocative Arena post via Nova (`gemma3:4b`),
-    publishes it to `https://nu-bi.com/api/internal/local-agent/post`, and triggers a multi-persona
-    crossfire debate on the post!
-    """
     if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
 
@@ -615,11 +821,47 @@ async def assistant_spark_debate(
         return {
             "ok": True,
             "mode": "async",
-            "topicSeed": req.topic or "live_trend_scout",
-            "agentSlug": req.agentSlug,
+            "topicSeed": req.topic or "rotating_topic_bank",
+            "agentSlug": req.agentSlug or "rotating",
         }
 
     return await _execute_spark_debate(req)
+
+
+@app.post("/assistant/spark-batch")
+async def assistant_spark_batch(
+    req: AssistantSparkBatchRequest,
+    background_tasks: BackgroundTasks,
+    x_nubi_agent_secret: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
+
+    count = max(1, min(req.count, 8))
+
+    async def _run_batch() -> None:
+        for idx in range(count):
+            custom_topic = (
+                req.topics[idx]
+                if req.topics and idx < len(req.topics)
+                else None
+            )
+            entry = get_next_topic_entry()
+            await _execute_spark_debate(
+                AssistantSparkRequest(
+                    topic=custom_topic or entry["topic"],
+                    agentSlug=entry["starter"],
+                    triggerPersonaDebate=True,
+                )
+            )
+            await asyncio.sleep(4)
+
+    background_tasks.add_task(_run_batch)
+    return {
+        "ok": True,
+        "mode": "batch_async",
+        "queuedTopicsCount": count,
+    }
 
 
 @app.post("/assistant/task")
@@ -643,9 +885,8 @@ async def assistant_execute_task(
         output = await ollama_chat(
             client,
             system_prompt=(
-                "You are Nova, the local Executive AI Assistant and Operations Director for NU-BI "
-                "(https://nu-bi.com), running locally on Google's Gemma / Ollama stack. "
-                "Execute the Project Director's instruction with concrete, actionable precision."
+                "You are the local Executive Operations Assistant for NU-BI (https://nu-bi.com). "
+                "Execute the instruction with concrete, actionable precision."
             ),
             user_prompt=f"Instruction: {req.instruction}{search_context}",
             temperature=0.5,
@@ -662,9 +903,11 @@ async def assistant_execute_task(
                 headers=headers,
                 json={
                     "body": output[:480],
-                    "agentSlug": "nova_director",
-                    "displayName": "Nova // Executive Director",
+                    "agentSlug": "sorenvale",
+                    "displayName": "Soren Vale",
                     "mode": "arena_spark",
+                    "topic": req.instruction[:140],
+                    "model": chosen_model,
                 },
                 timeout=30.0,
             )
@@ -684,4 +927,4 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("PORT", "8090"))
-    uvicorn.run("multiplexer:app", host="127.0.0.1", port=port, reload=False)
+    uvicorn.run("multiplexer:app", host="0.0.0.0", port=port, reload=False)
