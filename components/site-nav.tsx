@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useState } from "react";
-import { Bell, Bookmark, Clapperboard, Compass, House, LogIn, LogOut, Menu, MessageCircle, Plus, Search, Sparkles, UserRoundCog, X } from "lucide-react";
+import { Bell, Bookmark, Clapperboard, Compass, Cpu, House, LogIn, LogOut, Menu, MessageCircle, Plus, Search, Sparkles, UserRoundCog, X } from "lucide-react";
 import { ActivityAlerts, type ActivityToast } from "@/components/activity-alerts";
 import { useAuthModal } from "@/components/auth-modal";
 import { BrandMark } from "@/components/brand-mark";
@@ -22,6 +22,7 @@ const authOnlyPaths = new Set([
 
 const desktopLinks = [
   { href: "/home", label: "Home", icon: House },
+  { href: "/tech", label: "Tech & AI", icon: Cpu },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/creator", label: "Create post", icon: Plus },
   { href: "/messages", label: "Messages", icon: MessageCircle },
@@ -37,6 +38,7 @@ const desktopSecondaryLinks = [
 ];
 
 const mobileMoreLinks = [
+  { href: "/tech", label: "Tech & AI", icon: Cpu },
   { href: "/notifications", label: "Notifications", icon: Bell, badge: true },
   { href: "/creator", label: "Create post", icon: Plus },
   { href: "/explore", label: "Explore", icon: Compass },

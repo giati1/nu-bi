@@ -1,5 +1,22 @@
 export const ARENA_FIGHTERS = [
   {
+    slug: "kairosterling",
+    legacySlug: "nova_tech",
+    handle: "@kairosterling",
+    name: "Kairo Sterling",
+    tag: "Tech & AI",
+    role: "AI, Chips & Frontier Tech Radar",
+    stance: "Breaking Tech & AI News",
+    bio: "Tracking breaking AI releases, open-source models, robotics, chips, and the startups rewriting software.",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+    coverImageUrl: "/cinematic/shot-2.jpg",
+    videoUrl: "/cinematic/pulse-loop.mp4",
+    accentClass:
+      "border-sky-400/35 bg-[linear-gradient(145deg,rgba(14,165,233,0.18),rgba(10,12,24,0.92))] text-sky-200 hover:border-sky-400/70",
+    dotClass: "bg-sky-400 shadow-[0_0_10px_#38bdf8]"
+  },
+  {
     slug: "marcusvance",
     legacySlug: "nova_hype",
     handle: "@marcusvance",
@@ -71,6 +88,19 @@ export const ARENA_FIGHTERS = [
 
 export const CINEMATIC_TOPICS = [
   {
+    id: "ai-tech-radar",
+    eyebrow: "TECH & AI // BREAKING",
+    label: "Open-Source AI vs. Big Tech Frontier Labs",
+    headline: "THE AI ARMS RACE",
+    subcopy:
+      "Local open-weight models and autonomous agents are closing the gap with trillion-dollar cloud labs.",
+    topicPrompt:
+      "#tech #ai Are fast local open-source AI models and autonomous agents about to overtake closed Big Tech cloud APIs?",
+    videoUrl: "/cinematic/pulse-loop.mp4",
+    imageUrl: "/cinematic/shot-2.jpg",
+    tag: "#ai"
+  },
+  {
     id: "street-culture",
     eyebrow: "CULTURE // LIVE WAVE",
     label: "Future of Streetwear & Brand Worlds",
@@ -97,19 +127,6 @@ export const CINEMATIC_TOPICS = [
     tag: "#creators"
   },
   {
-    id: "next-social",
-    eyebrow: "SIGNAL // REAL TALK",
-    label: "High-Signal Rooms vs. Algorithmic Feeds",
-    headline: "KILL THE DEAD FEED",
-    subcopy:
-      "Passive scrolling is dead. Live debates, voice drops, and unfiltered cultural rooms win next.",
-    topicPrompt:
-      "Why do live, unfiltered debate rooms beat passive algorithmic scrolling every single time?",
-    videoUrl: "/cinematic/pulse-loop.mp4",
-    imageUrl: "/cinematic/shot-2.jpg",
-    tag: "#livepulse"
-  },
-  {
     id: "night-economy",
     eyebrow: "SOUND // VISUALS",
     label: "Music, Nightlife & Visual Identity",
@@ -121,6 +138,57 @@ export const CINEMATIC_TOPICS = [
     videoUrl: "/cinematic/hero-loop.mp4",
     imageUrl: "/cinematic/shot-4.jpg",
     tag: "#soundandvision"
+  }
+];
+
+export const TECH_RADAR_TOPICS = [
+  {
+    id: "open-models",
+    eyebrow: "01 // AI MODELS",
+    headline: "LOCAL AI VS. CLOUD GIANTS",
+    subcopy:
+      "Compact open-weight models running on consumer GPUs are challenging $100B cloud data centers.",
+    topicPrompt:
+      "#tech #ai Breaking down the latest shift in AI models: why small, fast models running on local hardware are beating bloated cloud wrappers.",
+    videoUrl: "/cinematic/pulse-loop.mp4",
+    imageUrl: "/cinematic/shot-2.jpg",
+    tag: "#aimodels"
+  },
+  {
+    id: "autonomous-agents",
+    eyebrow: "02 // AI AGENTS",
+    headline: "AUTONOMOUS SOFTWARE AGENTS",
+    subcopy:
+      "We are moving from chatbots that talk to AI agents that write code, run workflows, and ship products.",
+    topicPrompt:
+      "#tech #ai Autonomous AI agents that execute full workflows are replacing standard SaaS dashboards—who wins and who gets wiped out?",
+    videoUrl: "/cinematic/hero-loop.mp4",
+    imageUrl: "/cinematic/shot-1.jpg",
+    tag: "#agents"
+  },
+  {
+    id: "chips-robotics",
+    eyebrow: "03 // HARDWARE & ROBOTICS",
+    headline: "SILICON, GPUS & HUMANOIDS",
+    subcopy:
+      "Next-gen AI chips, edge compute, and general-purpose robotics stepping out of the lab.",
+    topicPrompt:
+      "#tech #ai Between custom AI silicon and humanoid robotics, where is the biggest real-world hardware breakthrough happening right now?",
+    videoUrl: "/cinematic/creator-loop.mp4",
+    imageUrl: "/cinematic/shot-4.jpg",
+    tag: "#hardware"
+  },
+  {
+    id: "one-person-unicorn",
+    eyebrow: "04 // NEXT-GEN STARTUPS",
+    headline: "3-PERSON AI UNICORNS",
+    subcopy:
+      "Tiny engineering teams with AI leverage are shipping faster than 500-person legacy tech companies.",
+    topicPrompt:
+      "#tech #ai Can a 3-person technical team armed with modern AI tools realistically out-build a 300-person legacy software company?",
+    videoUrl: "/cinematic/culture-loop.mp4",
+    imageUrl: "/cinematic/shot-3.jpg",
+    tag: "#startups"
   }
 ];
 
@@ -137,6 +205,28 @@ const VOICE_MAP: Record<
     cardAccent: string;
   }
 > = {
+  kairosterling: {
+    username: "kairosterling",
+    displayName: "Kairo Sterling",
+    badgeLabel: "Tech & AI",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+    coverImageUrl: "/cinematic/shot-2.jpg",
+    videoUrl: "/cinematic/pulse-loop.mp4",
+    className: "border-sky-400/35 bg-sky-500/12 text-sky-200",
+    cardAccent: "border-l-2 border-l-sky-400/75 bg-sky-500/[0.04]"
+  },
+  nova_tech: {
+    username: "kairosterling",
+    displayName: "Kairo Sterling",
+    badgeLabel: "Tech & AI",
+    avatarUrl:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85",
+    coverImageUrl: "/cinematic/shot-2.jpg",
+    videoUrl: "/cinematic/pulse-loop.mp4",
+    className: "border-sky-400/35 bg-sky-500/12 text-sky-200",
+    cardAccent: "border-l-2 border-l-sky-400/75 bg-sky-500/[0.04]"
+  },
   marcusvance: {
     username: "marcusvance",
     displayName: "Marcus Vance",
@@ -257,6 +347,7 @@ export function sanitizePublicVoiceText(text: string | null | undefined): string
     return "";
   }
   return text
+    .replace(/@nova_tech\b/gi, "@kairosterling")
     .replace(/@nova_hype\b/gi, "@marcusvance")
     .replace(/@nova_purist\b/gi, "@elenarostova")
     .replace(/@nova_advocate\b/gi, "@jaxmercer")

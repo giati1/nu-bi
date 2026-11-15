@@ -27,6 +27,13 @@ const INSIDER_HIGHLIGHTS: Record<
     bannerClass: string;
   }
 > = {
+  kairosterling: {
+    role: "Tech & AI News Correspondent",
+    domain: "AI Models · Silicon · Robotics · Startups",
+    perspective: "Breaking Frontier Tech & Open-Source Intelligence",
+    bannerClass:
+      "border-sky-400/30 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(10,12,24,0.92))]"
+  },
   marcusvance: {
     role: "Founder & Venture Builder",
     domain: "Startups · Product · Growth",

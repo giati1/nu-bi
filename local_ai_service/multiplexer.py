@@ -54,6 +54,11 @@ AUTO_SPARK_INTERVAL_SECONDS = int(os.getenv("AUTO_SPARK_INTERVAL_SECONDS", "900"
 
 ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
     {
+        "category": "tech_ai",
+        "topic": "LIVE_TECH_AI_NEWS: Scout the latest breaking AI model release, open-source breakthrough, or chip/robotics news and explain why it changes the game.",
+        "starter": "kairosterling",
+    },
+    {
         "category": "music",
         "topic": "Why do underground artists with a cult following outlast mainstream industry plants every single time?",
         "starter": "sorenvale",
@@ -62,6 +67,11 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "category": "hustle",
         "topic": "Is it better to move in complete silence until the project is done, or build in public so people watch the grind?",
         "starter": "marcusvance",
+    },
+    {
+        "category": "tech_ai",
+        "topic": "Small open-source AI models running locally on consumer GPUs are catching up to trillion-dollar cloud labs faster than anyone predicted.",
+        "starter": "kairosterling",
     },
     {
         "category": "culture",
@@ -74,6 +84,11 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "starter": "sorenvale",
     },
     {
+        "category": "tech_ai",
+        "topic": "Autonomous AI coding and workflow agents are shifting software from 'apps you click' to 'agents that execute for you.' Which industry gets disrupted first?",
+        "starter": "kairosterling",
+    },
+    {
         "category": "money",
         "topic": "If someone handed you $50K right now with one rule—you can't put it in stocks or crypto—what business or asset are you buying?",
         "starter": "marcusvance",
@@ -82,6 +97,11 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "category": "relationships",
         "topic": "Why has modern dating turned into a game of who cares less instead of who actually builds something real?",
         "starter": "jaxmercer",
+    },
+    {
+        "category": "tech_ai",
+        "topic": "Between custom AI silicon, edge compute, and humanoid robotics stepping into warehouses, hardware is officially exciting again.",
+        "starter": "kairosterling",
     },
     {
         "category": "discipline",
@@ -97,6 +117,11 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "category": "sports",
         "topic": "In high-stakes games, do you trust raw talent that improvises or a disciplined system that never panics in the 4th quarter?",
         "starter": "marcusvance",
+    },
+    {
+        "category": "tech_ai",
+        "topic": "A 3-person engineering team armed with modern AI agents can now ship what used to take a 150-person company. Are bloated tech orgs finished?",
+        "starter": "kairosterling",
     },
     {
         "category": "loyalty",
@@ -571,6 +596,28 @@ async def web_search_snippets(client: httpx.AsyncClient, query: str, max_results
     except Exception as exc:
         logger.warning("DuckDuckGo search fallback triggered: %s", exc)
 
+    if not results:
+        try:
+            hn_ids_resp = await client.get(
+                "https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10.0
+            )
+            story_ids = (hn_ids_resp.json() or [])[:max_results]
+            for sid in story_ids:
+                item_resp = await client.get(
+                    f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=8.0
+                )
+                item = item_resp.json() or {}
+                if item.get("title"):
+                    results.append(
+                        {
+                            "title": str(item["title"]),
+                            "snippet": f"Breaking tech story ({item.get('score', 0)} pts)",
+                            "url": str(item.get("url") or f"https://news.ycombinator.com/item?id={sid}"),
+                        }
+                    )
+        except Exception as exc:
+            logger.warning("HackerNews fallback failed: %s", exc)
+
     return results
 
 
@@ -588,22 +635,37 @@ async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
     if not chosen_slug or chosen_slug not in persona_by_slug:
         chosen_slug = topic_entry["starter"]
     starter_persona = persona_by_slug.get(chosen_slug, personas[0])
+    is_tech_correspondent = starter_persona["slug"] == "kairosterling" or "#tech" in topic_context.lower() or "live_tech_ai_news" in topic_context.lower()
 
     async with httpx.AsyncClient() as client:
+        live_headlines_block = ""
+        if is_tech_correspondent and "live_tech_ai_news" in topic_context.lower():
+            headlines = await web_search_snippets(
+                client,
+                "latest AI model release open source LLM GPU robotics tech news",
+                4,
+            )
+            if headlines:
+                live_headlines_block = "\nLive Tech & AI Headlines:\n" + "\n".join(
+                    f"- {h['title']}: {h['snippet']}" for h in headlines[:3]
+                )
+
         post_body = await ollama_chat(
             client,
             system_prompt=(
                 f"{starter_persona['systemPrompt']} "
                 "You are starting a new conversation thread on the NU-BI feed. "
                 "Write a single compelling, authentic social post (2-3 sentences max, under 320 characters) "
-                "that shares a bold opinion or asks a real question people will want to argue about in the comments. "
-                "Do NOT wrap the post in quotes and do NOT use hashtags."
+                "that shares a bold opinion or breaks down a tech/cultural shift people will want to debate in the comments. "
+                "Do NOT wrap the post in quotes."
             ),
-            user_prompt=f"Topic to post about: {topic_context}\n\nWrite your post now:",
+            user_prompt=f"Topic to post about: {topic_context}{live_headlines_block}\n\nWrite your post now:",
             temperature=0.82,
             model=starter_persona.get("model") or ASSISTANT_MODEL,
         )
-        cleaned_post = post_body.strip().strip('"')[:480]
+        cleaned_post = post_body.strip().strip('"')[:440]
+        if is_tech_correspondent and "#tech" not in cleaned_post.lower():
+            cleaned_post = f"{cleaned_post} #tech #ai"
 
         headers = {"Content-Type": "application/json"}
         if LOCAL_AGENT_SECRET:

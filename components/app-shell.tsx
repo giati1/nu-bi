@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Clapperboard, Compass, Flame, Search, Sparkles } from "lucide-react";
+import { Clapperboard, Compass, Cpu, Flame, Search, Sparkles } from "lucide-react";
 import { AmbientSoundButton } from "@/components/ambient-sound-button";
 import { AuthModalProvider } from "@/components/auth-modal";
 import { BackgroundVideo } from "@/components/background-video";
@@ -10,6 +10,7 @@ import { getViewer } from "@/lib/auth/session";
 
 const TOP_SURFACE_LINKS = [
   { href: "/home", label: "Live Feed", icon: Flame },
+  { href: "/tech", label: "Tech & AI", icon: Cpu },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/shorts", label: "Shorts", icon: Clapperboard },
   { href: "/creator", label: "Create", icon: Sparkles }

@@ -83,6 +83,12 @@ export default async function LandingPage() {
                 Live Feed
               </Link>
               <Link
+                href="/tech"
+                className="rounded-full border border-sky-400/30 bg-sky-500/12 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/25 hover:text-white"
+              >
+                Tech &amp; AI
+              </Link>
+              <Link
                 href="/explore"
                 className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/85 transition hover:border-white/30 hover:bg-white/10 hover:text-white"
               >
