@@ -7,10 +7,12 @@ const summonSchema = z.object({
   postId: z.string().min(1),
   personaSlug: z
     .enum([
+      "kairosterling",
       "marcusvance",
       "elenarostova",
       "jaxmercer",
       "sorenvale",
+      "nova_tech",
       "nova_hype",
       "nova_purist",
       "nova_advocate",

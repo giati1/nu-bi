@@ -142,10 +142,22 @@ function mapUser(row: UserRow): ViewerRecord {
   };
 }
 
+function mapPublicUser(row: UserRow): ViewerRecord {
+  return {
+    ...mapUser(row),
+    email: ""
+  };
+}
+
 function mapStory(row: StoryRow): StoryRecord {
+  const identity = resolvePublicVoiceIdentity(
+    row.username,
+    row.display_name,
+    normalizeStoredFileUrl(row.avatar_url)
+  );
   return {
     id: row.id,
-    body: row.body,
+    body: sanitizePublicVoiceText(row.body),
     mediaUrl: normalizeStoredFileUrl(row.media_url),
     destinationPath: row.destination_path,
     destinationLabel: row.destination_label,
@@ -154,9 +166,9 @@ function mapStory(row: StoryRow): StoryRecord {
     viewerHasSeen: Boolean(row.viewer_has_seen),
     author: {
       id: row.user_id,
-      username: row.username,
-      displayName: row.display_name,
-      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
       bio: row.bio
     }
   };
@@ -1757,7 +1769,7 @@ async function getFollowList(userId: string, kind: "followers" | "following") {
          LIMIT 12`;
 
   const rows = await all<UserRow>(query, [userId]);
-  return rows.map((row) => mapUser(row));
+  return rows.map((row) => mapPublicUser(row));
 }
 
 export async function getProfilePage(username: string, viewerId: string) {
@@ -1906,9 +1918,12 @@ export async function getProfilePage(username: string, viewerId: string) {
       (await getPostById(pinnedPostRef.pinned_post_id, viewerId))
     : null;
 
+  const sanitizedProfileUser: ViewerRecord =
+    user.id === viewerId ? user : { ...user, email: "" };
+
   return {
     user: {
-      ...user,
+      ...sanitizedProfileUser,
       pinnedPostId: pinnedPostRef?.pinned_post_id ?? null,
       followerCount: followerCountRow?.count ?? 0,
       followingCount: followingCountRow?.count ?? 0,
@@ -1982,7 +1997,7 @@ export async function searchAll(query: string, viewerId: string) {
        LIMIT 12`,
       [like, like, like]
     )
-  ).map((row) => mapUser(row));
+  ).map((row) => mapPublicUser(row));
 
   const posts = await getPostRowsForSql(
     `SELECT
@@ -2115,36 +2130,46 @@ export async function getConversationSummaries(viewerId: string) {
     [viewerId, viewerId, viewerId, viewerId]
   );
 
-  return rows.map<ConversationSummary>((row) => ({
-    id: row.id,
-    updatedAt: row.updated_at,
-    unreadCount: row.unread_count,
-    isPinned: Boolean(row.is_pinned),
-    isArchived: Boolean(row.is_archived),
-    isMuted: Boolean(row.is_muted),
-    counterpart: {
-      id: row.counterpart_id,
-      username: row.counterpart_username,
-      displayName: row.counterpart_display_name,
-      avatarUrl: row.counterpart_avatar_url,
-      bio: row.counterpart_bio
-    },
-    lastMessage: row.last_message_body
-      ? {
-          body: row.last_message_body,
-          createdAt: row.last_message_created_at ?? row.updated_at,
-          senderId: row.last_message_sender_id ?? row.counterpart_id,
-          mediaMimeType: row.last_message_media_mime_type
-        }
-      : row.last_message_media_mime_type
+  return rows.map<ConversationSummary>((row) => {
+    const identity = resolvePublicVoiceIdentity(
+      row.counterpart_username,
+      row.counterpart_display_name,
+      normalizeStoredFileUrl(row.counterpart_avatar_url)
+    );
+    const fighter = ARENA_FIGHTERS.find(
+      (f) => f.slug === identity.username || f.legacySlug === row.counterpart_username.toLowerCase()
+    );
+    return {
+      id: row.id,
+      updatedAt: row.updated_at,
+      unreadCount: row.unread_count,
+      isPinned: Boolean(row.is_pinned),
+      isArchived: Boolean(row.is_archived),
+      isMuted: Boolean(row.is_muted),
+      counterpart: {
+        id: row.counterpart_id,
+        username: identity.username,
+        displayName: identity.displayName,
+        avatarUrl: identity.avatarUrl,
+        bio: fighter ? fighter.bio : row.counterpart_bio
+      },
+      lastMessage: row.last_message_body
         ? {
-            body: "",
+            body: sanitizePublicVoiceText(row.last_message_body),
             createdAt: row.last_message_created_at ?? row.updated_at,
             senderId: row.last_message_sender_id ?? row.counterpart_id,
             mediaMimeType: row.last_message_media_mime_type
           }
-        : null
-  }));
+        : row.last_message_media_mime_type
+          ? {
+              body: "",
+              createdAt: row.last_message_created_at ?? row.updated_at,
+              senderId: row.last_message_sender_id ?? row.counterpart_id,
+              mediaMimeType: row.last_message_media_mime_type
+            }
+          : null
+    };
+  });
 }
 
 export async function createOrGetDirectConversation(firstUserId: string, secondUserId: string) {
@@ -2187,8 +2212,20 @@ async function maybeSendAiWelcomeMessage(targetUserId: string, viewerId: string)
     return;
   }
 
-  const agent = await getAIAgentByLinkedUserId(targetUserId);
-  if (!agent?.enabled) {
+  const [agent, targetUser] = await Promise.all([
+    getAIAgentByLinkedUserId(targetUserId),
+    getUserById(targetUserId)
+  ]);
+
+  const matchedFighter = targetUser
+    ? ARENA_FIGHTERS.find(
+        (f) =>
+          f.slug === targetUser.username.toLowerCase() ||
+          f.legacySlug === targetUser.username.toLowerCase()
+      )
+    : null;
+
+  if (!agent?.enabled && !matchedFighter) {
     return;
   }
 
@@ -2202,7 +2239,19 @@ async function maybeSendAiWelcomeMessage(targetUserId: string, viewerId: string)
     return;
   }
 
-  const welcomeBody = buildAiWelcomeMessage(agent.displayName, agent.handle, agent.category, agent.description);
+  const welcomeBody = matchedFighter
+    ? buildAiWelcomeMessage(
+        matchedFighter.name,
+        matchedFighter.slug,
+        matchedFighter.role,
+        matchedFighter.bio
+      )
+    : buildAiWelcomeMessage(
+        agent!.displayName,
+        agent!.handle,
+        agent!.category,
+        agent!.description
+      );
   await sendMessage({
     senderId: targetUserId,
     conversationId,
@@ -2218,14 +2267,14 @@ function buildAiWelcomeMessage(
 ) {
   const specialty = formatSpecialty(category);
   const detail = description?.trim()
-    ? description.trim().replace(/\s+/g, " ").slice(0, 120)
-    : `I post and chat about ${specialty.toLowerCase()}.`;
+    ? description.trim().replace(/\s+/g, " ").slice(0, 140)
+    : `I post and debate around ${specialty.toLowerCase()}.`;
 
   return [
-    `Hey, I'm ${displayName} (@${username}).`,
-    `Glad you followed. I'm your ${specialty.toLowerCase()} friend on NOMI.`,
+    `Yo — ${displayName} (@${username}) here.`,
+    `Appreciate the follow on NU-BI.`,
     detail,
-    "Send me a message anytime. I can help you find people to follow, shape a post, or get your NOMI profile moving."
+    "Drop a message here anytime if you want to debate a topic, test an idea, or spark a thread."
   ].join(" ");
 }
 
@@ -2403,40 +2452,47 @@ export async function getConversationThread(conversationId: string, viewerId: st
     [conversationId, viewerId]
   );
 
-  return messages.map<MessageRecord>((row) => ({
-    id: row.id,
-    body: row.body,
-    createdAt: row.created_at,
-    senderId: row.sender_id,
-    media: media
-      .filter((item) => item.message_id === row.id)
-      .map((item) => ({
-        id: item.id,
-        url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
-        mimeType: item.mime_type
-      })),
-    replyTo: row.reply_to_message_id
-      ? {
-          id: row.reply_to_message_id,
-          body: row.reply_to_body ?? "",
-          senderDisplayName: row.reply_to_sender_display_name ?? "Unknown"
-        }
-      : null,
-    reactions: reactions
-      .filter((reaction) => reaction.message_id === row.id)
-      .map((reaction) => ({
-        emoji: reaction.emoji,
-        count: reaction.count,
-        viewerReacted: Boolean(reaction.viewer_reacted)
-      })),
-    sender: {
-      id: row.sender_id,
-      username: row.username,
-      displayName: row.display_name,
-      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
-      bio: row.bio
-    }
-  }));
+  return messages.map<MessageRecord>((row) => {
+    const senderIdentity = resolvePublicVoiceIdentity(
+      row.username,
+      row.display_name,
+      normalizeStoredFileUrl(row.avatar_url)
+    );
+    return {
+      id: row.id,
+      body: sanitizePublicVoiceText(row.body),
+      createdAt: row.created_at,
+      senderId: row.sender_id,
+      media: media
+        .filter((item) => item.message_id === row.id)
+        .map((item) => ({
+          id: item.id,
+          url: normalizeStoredFileUrl(item.url, item.storage_key) ?? item.url,
+          mimeType: item.mime_type
+        })),
+      replyTo: row.reply_to_message_id
+        ? {
+            id: row.reply_to_message_id,
+            body: sanitizePublicVoiceText(row.reply_to_body ?? ""),
+            senderDisplayName: row.reply_to_sender_display_name ?? "Unknown"
+          }
+        : null,
+      reactions: reactions
+        .filter((reaction) => reaction.message_id === row.id)
+        .map((reaction) => ({
+          emoji: reaction.emoji,
+          count: reaction.count,
+          viewerReacted: Boolean(reaction.viewer_reacted)
+        })),
+      sender: {
+        id: row.sender_id,
+        username: senderIdentity.username,
+        displayName: senderIdentity.displayName,
+        avatarUrl: senderIdentity.avatarUrl,
+        bio: row.bio
+      }
+    };
+  });
 }
 
 export async function getConversationReadState(conversationId: string, viewerId: string) {
@@ -2602,23 +2658,33 @@ export async function getNotifications(viewerId: string) {
     [viewerId]
   );
 
-  return rows.map<NotificationRecord>((row) => ({
-    id: row.id,
-    type: row.type,
-    entityId: row.entity_id,
-    entityType: row.entity_type,
-    readAt: row.read_at,
-    createdAt: row.created_at,
-    actor: row.actor_id
-      ? {
-          id: row.actor_id,
-          username: row.actor_username ?? "unknown",
-          displayName: row.actor_display_name ?? "Unknown",
-          avatarUrl: normalizeStoredFileUrl(row.actor_avatar_url),
-          bio: row.actor_bio
-        }
-      : null
-  }));
+  return rows.map<NotificationRecord>((row) => {
+    const actorIdentity = row.actor_id
+      ? resolvePublicVoiceIdentity(
+          row.actor_username ?? "unknown",
+          row.actor_display_name ?? "Unknown",
+          normalizeStoredFileUrl(row.actor_avatar_url)
+        )
+      : null;
+    return {
+      id: row.id,
+      type: row.type,
+      entityId: row.entity_id,
+      entityType: row.entity_type,
+      readAt: row.read_at,
+      createdAt: row.created_at,
+      actor:
+        row.actor_id && actorIdentity
+          ? {
+              id: row.actor_id,
+              username: actorIdentity.username,
+              displayName: actorIdentity.displayName,
+              avatarUrl: actorIdentity.avatarUrl,
+              bio: row.actor_bio
+            }
+          : null
+    };
+  });
 }
 
 export async function getActivitySummary(viewerId: string) {
@@ -2761,7 +2827,7 @@ export async function getSuggestedUsers(viewerId: string) {
   return [...interestUsers, ...fallback]
     .filter((row, index, rows) => rows.findIndex((item) => item.id === row.id) === index)
     .slice(0, 8)
-    .map((row) => mapUser(row));
+    .map((row) => mapPublicUser(row));
 }
 
 export async function getAIPersonaDirectory(viewerId: string) {
@@ -2943,7 +3009,7 @@ function formatSpecialty(category: string) {
     case "music":
       return "Music Head";
     default:
-      return titleCase(normalized || "AI Persona");
+      return titleCase(normalized || "Community Voice");
   }
 }
 

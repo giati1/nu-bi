@@ -1,7 +1,14 @@
 import { isAutomatedVoiceUsername } from "@/lib/arena-personas";
 import { getCloudflareContextAsync } from "@/lib/cloudflare/context";
 import { env } from "@/lib/config/env";
-import { getCommentsForPost, getPostById } from "@/lib/db/repository";
+import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
+import { get } from "@/lib/db/client";
+import {
+  getCommentsForPost,
+  getConversationThread,
+  getPostById,
+  getUserById
+} from "@/lib/db/repository";
 import type { FeedPost } from "@/types/domain";
 
 type WaitUntilContext = {
@@ -172,7 +179,7 @@ export function dispatchNewCommentToLocalAI(input: {
 
       let targetPersonaSlug: string | null = null;
       const mentionMatch = input.body.match(
-        /@(marcusvance|elenarostova|jaxmercer|sorenvale|nova_[a-z0-9_]+)/i
+        /@(kairosterling|marcusvance|elenarostova|jaxmercer|sorenvale|nova_[a-z0-9_]+)/i
       );
       if (mentionMatch?.[1]) {
         targetPersonaSlug = mentionMatch[1].toLowerCase();
@@ -219,6 +226,117 @@ export function dispatchNewCommentToLocalAI(input: {
       console.error("[arena-dispatcher] failed to dispatch comment to LOCAL_AI_ENDPOINT", {
         postId: input.postId,
         commentId: input.commentId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  })();
+
+  void (async () => {
+    try {
+      const { ctx } = await resolveDispatcherConfig();
+      ctx?.waitUntil?.(task);
+    } catch {
+      // Non-Cloudflare runtime: promise continues asynchronously in Node.
+    }
+  })();
+}
+
+export function dispatchDirectMessageToLocalAI(input: {
+  conversationId: string;
+  messageId: string;
+  body: string;
+  sender: {
+    id: string;
+    username: string;
+    displayName: string;
+  };
+}) {
+  if (!input.body.trim()) {
+    return;
+  }
+
+  if (isAutomatedVoiceUsername(input.sender.username)) {
+    return;
+  }
+
+  const task = (async () => {
+    try {
+      const { endpoint, secret } = await resolveDispatcherConfig();
+      if (!endpoint) {
+        return;
+      }
+
+      const counterpartRow = await get<{ user_id: string }>(
+        `SELECT user_id
+         FROM conversation_members
+         WHERE conversation_id = ? AND user_id <> ?
+         LIMIT 1`,
+        [input.conversationId, input.sender.id]
+      );
+      if (!counterpartRow?.user_id) {
+        return;
+      }
+
+      const [counterpartUser, counterpartAgent, thread] = await Promise.all([
+        getUserById(counterpartRow.user_id),
+        getAIAgentByLinkedUserId(counterpartRow.user_id),
+        getConversationThread(input.conversationId, input.sender.id)
+      ]);
+
+      if (!counterpartUser) {
+        return;
+      }
+
+      const isVoiceCounterpart =
+        isAutomatedVoiceUsername(counterpartUser.username) || Boolean(counterpartAgent?.enabled);
+      if (!isVoiceCounterpart) {
+        return;
+      }
+
+      const baseUrl = endpoint.replace(/\/webhook\/new-post\/?$/i, "").replace(/\/$/, "");
+      const dmReplyUrl = `${baseUrl}/assistant/dm-reply?async=1`;
+
+      const recentHistory = (thread ?? []).slice(-6).map((msg) => ({
+        senderUsername: msg.sender.username,
+        senderDisplayName: msg.sender.displayName,
+        body: msg.body
+      }));
+
+      const payload = {
+        event: "dm.created",
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        body: input.body,
+        personaSlug: counterpartUser.username.toLowerCase(),
+        personaDisplayName: counterpartUser.displayName,
+        personaBio: counterpartUser.bio ?? counterpartAgent?.description ?? "",
+        sender: input.sender,
+        history: recentHistory,
+        callbackUrl: `${env.appUrl.replace(/\/$/, "")}/api/internal/local-agent/dm`
+      };
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (secret) {
+        headers["x-nubi-agent-secret"] = secret;
+      }
+
+      const response = await fetch(dmReplyUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        console.warn("[arena-dispatcher] LOCAL_AI_ENDPOINT dm dispatch returned non-OK status", {
+          conversationId: input.conversationId,
+          status: response.status
+        });
+      }
+    } catch (error) {
+      console.error("[arena-dispatcher] failed to dispatch DM to LOCAL_AI_ENDPOINT", {
+        conversationId: input.conversationId,
         error: error instanceof Error ? error.message : String(error)
       });
     }

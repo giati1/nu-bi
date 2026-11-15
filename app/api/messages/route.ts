@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireViewer } from "@/lib/auth/session";
+import { dispatchDirectMessageToLocalAI } from "@/lib/ai-agents/arena-dispatcher";
 import { queueAiDmAutoReply } from "@/lib/ai-agents/auto-replies";
 import { sendMessage } from "@/lib/db/repository";
 import { messageSchema } from "@/lib/validators";
@@ -15,6 +16,16 @@ export async function POST(request: Request) {
       body: parsed.body,
       replyToMessageId: parsed.replyToMessageId ?? null,
       media: parsed.media
+    });
+    dispatchDirectMessageToLocalAI({
+      conversationId: result.conversationId,
+      messageId: result.messageId,
+      body: parsed.body,
+      sender: {
+        id: viewer.id,
+        username: viewer.username,
+        displayName: viewer.displayName
+      }
     });
     queueAiDmAutoReply({
       conversationId: result.conversationId,

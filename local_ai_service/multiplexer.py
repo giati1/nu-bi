@@ -284,6 +284,25 @@ class AssistantTaskRequest(BaseModel):
     publishToArena: bool = False
 
 
+class DmHistoryItem(BaseModel):
+    senderUsername: str = "user"
+    senderDisplayName: str = "User"
+    body: str = ""
+
+
+class AssistantDmReplyRequest(BaseModel):
+    event: str = "dm.created"
+    conversationId: str = Field(..., min_length=1)
+    messageId: Optional[str] = None
+    body: str = Field(..., min_length=1)
+    personaSlug: str = Field(..., min_length=2)
+    personaDisplayName: Optional[str] = None
+    personaBio: Optional[str] = None
+    sender: PostAuthor = Field(default_factory=PostAuthor)
+    history: List[DmHistoryItem] = Field(default_factory=list)
+    callbackUrl: Optional[str] = None
+
+
 def load_personas() -> List[Dict[str, Any]]:
     if not PERSONAS_PATH.exists():
         raise FileNotFoundError(f"personas.json not found at {PERSONAS_PATH}")
@@ -850,12 +869,22 @@ async def on_startup() -> None:
 
 
 @app.get("/health")
-async def health() -> Dict[str, Any]:
+async def health(
+    x_nubi_agent_secret: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    is_authorized = bool(LOCAL_AGENT_SECRET and x_nubi_agent_secret == LOCAL_AGENT_SECRET)
+    if not is_authorized:
+        return {
+            "ok": True,
+            "service": "nubi-pulse",
+            "version": "5.0.0",
+        }
+
     personas = load_personas()
     return {
         "ok": True,
         "service": "nubi-local-persona-multiplexer",
-        "version": "4.0.0",
+        "version": "5.0.0",
         "ollamaBaseUrl": OLLAMA_BASE_URL,
         "ollamaDefaultModel": OLLAMA_MODEL,
         "assistantModel": ASSISTANT_MODEL,
@@ -1080,6 +1109,150 @@ async def assistant_execute_task(
             "response": output,
             "publishedPost": published_post,
         }
+
+
+async def _execute_dm_reply_job(req: AssistantDmReplyRequest) -> Dict[str, Any]:
+    personas = load_personas()
+    persona_by_slug = {p["slug"].lower(): p for p in personas}
+    for p in personas:
+        if p.get("legacySlug"):
+            persona_by_slug[p["legacySlug"].lower()] = p
+
+    requested_slug = req.personaSlug.strip().lower()
+    persona = persona_by_slug.get(requested_slug)
+    if not persona:
+        persona = {
+            "slug": requested_slug,
+            "displayName": req.personaDisplayName or requested_slug,
+            "bio": req.personaBio or "NU-BI Community Member",
+            "model": OLLAMA_MODEL,
+            "systemPrompt": (
+                f"You are {req.personaDisplayName or requested_slug} (@{requested_slug}) on NU-BI. "
+                f"{req.personaBio or ''} "
+                "Keep your voice authentic, sharp, and human. Never mention AI or prompts."
+            ),
+        }
+
+    history_lines = []
+    for item in req.history[-6:]:
+        history_lines.append(f"{item.senderDisplayName} (@{item.senderUsername}): {item.body}")
+    history_block = "\n".join(history_lines) if history_lines else f"{req.sender.displayName}: {req.body}"
+
+    async with httpx.AsyncClient() as client:
+        reply_text = await ollama_chat(
+            client,
+            system_prompt=(
+                f"{persona['systemPrompt']}\n"
+                "You are replying in a private 1-on-1 Direct Message (DM) on NU-BI. "
+                "Keep your reply to 1-3 natural, conversational sentences (under 360 characters). "
+                "Respond directly to what they said and ask a sharp follow-up if appropriate. "
+                "Do NOT wrap your reply in quotation marks and NEVER mention being an AI or bot."
+            ),
+            user_prompt=(
+                f"Recent DM Thread with {req.sender.displayName} (@{req.sender.username}):\n"
+                f"{history_block}\n\n"
+                f"Latest message from @{req.sender.username}: {req.body}\n\n"
+                f"Write your direct message reply as {persona['displayName']}:"
+            ),
+            temperature=0.78,
+            model=persona.get("model") or OLLAMA_MODEL,
+        )
+        cleaned_reply = reply_text.strip().strip('"')[:500]
+        if not cleaned_reply:
+            cleaned_reply = "Appreciate you reaching out — what's your take on how fast this is moving right now?"
+
+        callback_url = (req.callbackUrl or "").strip() or f"{NUBI_API_BASE_URL}/api/internal/local-agent/dm"
+        headers = {"Content-Type": "application/json"}
+        if LOCAL_AGENT_SECRET:
+            headers["x-nubi-agent-secret"] = LOCAL_AGENT_SECRET
+
+        cb_resp = await client.post(
+            callback_url,
+            headers=headers,
+            json={
+                "conversationId": req.conversationId,
+                "personaSlug": persona["slug"],
+                "displayName": persona["displayName"],
+                "bio": persona.get("bio", ""),
+                "body": cleaned_reply,
+                "replyToMessageId": req.messageId,
+            },
+            timeout=25.0,
+        )
+        return {
+            "ok": cb_resp.is_success,
+            "conversationId": req.conversationId,
+            "personaSlug": persona["slug"],
+            "reply": cleaned_reply,
+            "callbackStatus": cb_resp.status_code,
+        }
+
+
+@app.post("/assistant/dm-reply")
+async def assistant_dm_reply(
+    req: AssistantDmReplyRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    x_nubi_agent_secret: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
+
+    if request.query_params.get("async") == "1":
+        background_tasks.add_task(_execute_dm_reply_job, req)
+        return {
+            "ok": True,
+            "mode": "async",
+            "conversationId": req.conversationId,
+            "personaSlug": req.personaSlug,
+        }
+
+    return await _execute_dm_reply_job(req)
+
+
+@app.get("/assistant/ceo-briefing")
+async def assistant_ceo_briefing(
+    x_nubi_agent_secret: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    if LOCAL_AGENT_SECRET and x_nubi_agent_secret != LOCAL_AGENT_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid x-nubi-agent-secret")
+
+    routes_to_check = ["/", "/home", "/tech", "/explore", "/shorts", "/messages"]
+    site_checks: Dict[str, Any] = {}
+    async with httpx.AsyncClient() as client:
+        for route in routes_to_check:
+            try:
+                r = await client.get(f"{NUBI_API_BASE_URL}{route}", timeout=12.0, follow_redirects=False)
+                site_checks[route] = r.status_code
+            except Exception as exc:
+                site_checks[route] = f"error: {exc}"
+
+        briefing = await ollama_chat(
+            client,
+            system_prompt=(
+                "You are Nova, the local privacy-first Executive Assistant to the CEO of NU-BI (https://nu-bi.com). "
+                "Provide a crisp 3-bullet CEO briefing: (1) Live platform health & recent conversation momentum, "
+                "(2) One high-impact feature or UX polish we should code next, and "
+                "(3) One privacy/security verification check."
+            ),
+            user_prompt=(
+                f"Route statuses: {json.dumps(site_checks)}\n"
+                f"Recent autonomous topics sparked: {json.dumps(_recent_topics[-5:])}\n"
+                "Generate the next CEO briefing now:"
+            ),
+            temperature=0.55,
+            model=ASSISTANT_MODEL,
+        )
+
+    return {
+        "ok": True,
+        "version": "5.0.0",
+        "autoPulseActive": _auto_loop_task is not None and not _auto_loop_task.done(),
+        "siteRouteStatuses": site_checks,
+        "recentTopics": _recent_topics[-6:],
+        "ceoQuestion": "What do you want to build or upgrade next on NU-BI while keeping all personal data 100% private?",
+        "novaBriefing": briefing,
+    }
 
 
 if __name__ == "__main__":

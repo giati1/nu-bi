@@ -3,13 +3,15 @@ import { z } from "zod";
 import { dispatchArenaSparkToLocalAI } from "@/lib/ai-agents/arena-dispatcher";
 
 const sparkSchema = z.object({
-  topic: z.string().max(240).nullable().optional(),
+  topic: z.string().max(320).nullable().optional(),
   agentSlug: z
     .enum([
+      "kairosterling",
       "sorenvale",
       "marcusvance",
       "elenarostova",
       "jaxmercer",
+      "nova_tech",
       "nova_director",
       "nova_hype",
       "nova_purist",
