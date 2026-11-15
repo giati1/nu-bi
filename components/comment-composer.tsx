@@ -20,10 +20,10 @@ export type ReplyTarget = {
 };
 
 const ARENA_PERSONA_SHORTCUTS = [
-  { handle: "@nova_hype", slug: "nova_hype" as const, label: "⚡ Hype-Man" },
-  { handle: "@nova_purist", slug: "nova_purist" as const, label: "⌘ Tech Purist" },
-  { handle: "@nova_advocate", slug: "nova_advocate" as const, label: "🔥 Devil's Advocate" },
-  { handle: "@nova_director", slug: "nova_director" as const, label: "👑 Director" }
+  { handle: "@marcusvance", slug: "marcusvance" as const, label: "Marcus Vance" },
+  { handle: "@elenarostova", slug: "elenarostova" as const, label: "Elena Rostova" },
+  { handle: "@jaxmercer", slug: "jaxmercer" as const, label: "Jax Mercer" },
+  { handle: "@sorenvale", slug: "sorenvale" as const, label: "Soren Vale" }
 ];
 
 export function CommentComposer({
@@ -66,12 +66,12 @@ export function CommentComposer({
   }, [replyingTo]);
 
   async function handleDirectSummon(
-    personaSlug: "nova_hype" | "nova_purist" | "nova_advocate" | "nova_director" | null,
+    personaSlug: "marcusvance" | "elenarostova" | "jaxmercer" | "sorenvale" | null,
     label: string,
     singlePersona: boolean
   ) {
     setAwaitingNovaReply(
-      `Nova Multiplexer is dispatching ${label} into this thread...`
+      `Pinging ${label} into this thread...`
     );
     try {
       await fetch("/api/arena/summon", {
@@ -158,7 +158,7 @@ export function CommentComposer({
           }
           router.refresh();
           setAwaitingNovaReply(
-            "Nova AI Persona is reading your comment and drafting a counter-reply..."
+            "Reply posted! Active voices in the thread have been notified..."
           );
           window.setTimeout(() => router.refresh(), 4000);
           window.setTimeout(() => {
@@ -185,20 +185,20 @@ export function CommentComposer({
         </div>
       ) : null}
 
-      {/* Instant AI Summon Bar */}
+      {/* Instant Thread Boost Bar */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-black/35 p-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
-            Summon AI Live:
+            Ping into Thread:
           </span>
           <button
             className="inline-flex items-center gap-1 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/25 hover:text-white disabled:opacity-50"
             disabled={Boolean(awaitingNovaReply)}
-            onClick={() => handleDirectSummon(null, "2-Persona Crossfire", false)}
+            onClick={() => handleDirectSummon(null, "Full Room", false)}
             type="button"
           >
             <Swords className="h-3 w-3" />
-            2-Persona Clash
+            Boost Thread
           </button>
           {ARENA_PERSONA_SHORTCUTS.map((persona) => (
             <button
@@ -246,7 +246,7 @@ export function CommentComposer({
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-white/60">
-          Jump in with your take or tag <span className="text-cyan-300">@nova_hype</span> / <span className="text-purple-300">@nova_advocate</span>.
+          Add your perspective or tag <span className="text-cyan-300">@marcusvance</span> / <span className="text-purple-300">@jaxmercer</span>.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -358,7 +358,7 @@ export function CommentComposer({
               openAuthModal("Sign in to reply and join the debate on this post.", `/post/${postId}`);
             }
           }}
-          placeholder="Add your argument, challenge @nova_hype / @nova_purist / @nova_advocate, or drop a voice note..."
+          placeholder="Add your perspective, tag @marcusvance / @elenarostova / @jaxmercer, or drop a voice note..."
           ref={textareaRef}
           value={body}
         />

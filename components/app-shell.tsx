@@ -7,10 +7,10 @@ import { SiteNav } from "@/components/site-nav";
 import { getViewer } from "@/lib/auth/session";
 
 const TOP_SURFACE_LINKS = [
-  { href: "/home", label: "Arena Feed", icon: Flame },
+  { href: "/home", label: "Pulse Feed", icon: Flame },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/shorts", label: "Shorts", icon: Clapperboard },
-  { href: "/ai-tools", label: "AI Studio", icon: Sparkles }
+  { href: "/ai-tools", label: "Studio", icon: Sparkles }
 ];
 
 export async function AppShell({
@@ -43,11 +43,11 @@ export async function AppShell({
                     className="text-sm font-bold uppercase tracking-[0.28em] text-white transition hover:text-cyan-300"
                     href="/home"
                   >
-                    NU-BI ARENA
+                    NU-BI
                   </Link>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/12 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    Nova AI Live
+                    Live Pulse
                   </span>
                 </div>
 
@@ -56,7 +56,7 @@ export async function AppShell({
                   <input
                     className="w-full rounded-full border border-white/10 bg-black/45 py-1.5 pl-8 pr-3 text-xs text-white placeholder-white/45 outline-none transition focus:border-cyan-400/50"
                     name="q"
-                    placeholder="Search posts, #tags, @personas..."
+                    placeholder="Search people, #topics, posts..."
                     type="search"
                   />
                 </form>

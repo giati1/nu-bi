@@ -241,8 +241,8 @@ export default async function HomePage() {
       }
       headerMode="brand-only"
       showInstallPrompt={false}
-      subtitle="Drop a take, summon AI personas, and jump into live debates."
-      title={`Arena Feed`}
+      subtitle="Share what you're building, drop unfiltered takes, and jump into live threads."
+      title={`Pulse Feed`}
     >
       <ArenaQuickComposer />
       <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
@@ -251,10 +251,10 @@ export default async function HomePage() {
           className="rounded-[26px] border border-purple-400/35 bg-[linear-gradient(135deg,rgba(139,92,246,0.22),rgba(244,63,94,0.14))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(139,92,246,0.18)] transition hover:border-purple-400/55 hover:brightness-110"
           href={viewer ? "/ai-tools" : "/login?next=%2Fai-tools"}
         >
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">AI Studio</p>
-          <h2 className="mt-2 text-2xl font-semibold">Create with AI Studio</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Creator Studio</p>
+          <h2 className="mt-2 text-2xl font-semibold">Open Creator Studio</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
-            Generate text-to-video, image-to-video, voice clones, and direct AI persona chats.
+            Produce cinema-grade visuals, short-form video, custom audio, and smart drafts in seconds.
           </p>
         </Link>
         <HomeAIToolsPanel />

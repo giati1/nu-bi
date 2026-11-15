@@ -1,5 +1,9 @@
 import crypto from "crypto";
-import { ARENA_FIGHTERS } from "@/lib/arena-personas";
+import {
+  ARENA_FIGHTERS,
+  resolvePublicVoiceIdentity,
+  sanitizePublicVoiceText
+} from "@/lib/arena-personas";
 import { all, get, run, transaction } from "@/lib/db/client";
 import { getAIAgentByLinkedUserId } from "@/lib/db/ai-repository";
 import { normalizeEmail, normalizeUsername } from "@/lib/identity";
@@ -115,13 +119,17 @@ type StoryRow = {
 };
 
 function mapUser(row: UserRow): ViewerRecord {
+  const identity = resolvePublicVoiceIdentity(row.username, row.display_name);
+  const fighter = ARENA_FIGHTERS.find(
+    (f) => f.slug === identity.username || f.legacySlug === row.username.toLowerCase()
+  );
   return {
     id: row.id,
     email: row.email,
-    username: row.username,
-    displayName: row.display_name,
+    username: identity.username,
+    displayName: identity.displayName,
     avatarUrl: normalizeStoredFileUrl(row.avatar_url),
-    bio: row.bio,
+    bio: fighter ? fighter.bio : row.bio,
     voiceIntroUrl: normalizeStoredFileUrl(row.voice_intro_url),
     voiceIntroMimeType: row.voice_intro_mime_type ?? null,
     website: row.website,
@@ -168,17 +176,19 @@ function mapPost(
     avatar_url: string | null;
   }> = []
 ) {
-  return rows.map<FeedPost>((row) => ({
+  return rows.map<FeedPost>((row) => {
+    const authorIdentity = resolvePublicVoiceIdentity(row.username, row.display_name);
+    return {
     id: row.id,
-    body: row.body,
+    body: sanitizePublicVoiceText(row.body),
     contentType: (row.content_type ?? "standard") as "standard" | "poll",
     status: (row.status ?? "published") as "published" | "draft" | "scheduled",
     scheduledFor: row.scheduled_for ?? null,
     createdAt: row.created_at,
     author: {
       id: row.user_id,
-      username: row.username,
-      displayName: row.display_name,
+      username: authorIdentity.username,
+      displayName: authorIdentity.displayName,
       avatarUrl: normalizeStoredFileUrl(row.avatar_url),
       bio: row.bio
     },
@@ -248,15 +258,19 @@ function mapPost(
     previewComments: previewCommentRows
       .filter((item) => item.post_id === row.id && item.body.trim().length > 0)
       .slice(-3)
-      .map((item) => ({
-        id: item.id,
-        body: item.body,
-        createdAt: item.created_at,
-        authorUsername: item.username,
-        authorDisplayName: item.display_name,
-        authorAvatarUrl: normalizeStoredFileUrl(item.avatar_url)
-      }))
-  }));
+      .map((item) => {
+        const cIdent = resolvePublicVoiceIdentity(item.username, item.display_name);
+        return {
+          id: item.id,
+          body: sanitizePublicVoiceText(item.body),
+          createdAt: item.created_at,
+          authorUsername: cIdent.username,
+          authorDisplayName: cIdent.displayName,
+          authorAvatarUrl: normalizeStoredFileUrl(item.avatar_url)
+        };
+      })
+  };
+  });
 }
 
 function getPostLikeCountSql(postAlias = "p") {
@@ -1624,17 +1638,18 @@ export async function getCommentsForPost(postId: string) {
 
   const commentsById = new Map<string, CommentRecord>();
   for (const row of rows) {
+    const cIdent = resolvePublicVoiceIdentity(row.username, row.display_name);
     commentsById.set(row.id, {
       id: row.id,
-      body: row.body,
+      body: sanitizePublicVoiceText(row.body),
       createdAt: row.created_at,
       parentCommentId: row.parent_comment_id,
       depth: 0,
       media: mediaByCommentId.get(row.id) ?? [],
       author: {
         id: row.user_id,
-        username: row.username,
-        displayName: row.display_name,
+        username: cIdent.username,
+        displayName: cIdent.displayName,
         avatarUrl: normalizeStoredFileUrl(row.avatar_url),
         bio: row.bio
       }
@@ -1730,34 +1745,40 @@ async function getFollowList(userId: string, kind: "followers" | "following") {
 }
 
 export async function getProfilePage(username: string, viewerId: string) {
+  const lowerRequested = username.trim().toLowerCase();
+  const matchedFighter = ARENA_FIGHTERS.find(
+    (f) => f.slug.toLowerCase() === lowerRequested || f.legacySlug.toLowerCase() === lowerRequested
+  );
   let user = await getUserByUsername(username);
-  if (!user) {
-    const fighter = ARENA_FIGHTERS.find(
-      (f) => f.slug.toLowerCase() === username.trim().toLowerCase()
-    );
-    if (fighter) {
-      try {
-        user = await createUser({
-          email: `${fighter.slug}@nubi.ai`,
-          username: fighter.slug,
-          displayName: `Nova // ${fighter.name}`,
-          passwordHash: `arena-${fighter.slug}`
+  if (!user && matchedFighter) {
+    user =
+      (await getUserByUsername(matchedFighter.slug)) ??
+      (await getUserByUsername(matchedFighter.legacySlug));
+  }
+  if (!user && matchedFighter) {
+    try {
+      user = await createUser({
+        email: `${matchedFighter.slug}@nubi.social`,
+        username: matchedFighter.slug,
+        displayName: matchedFighter.name,
+        passwordHash: `voice-${matchedFighter.slug}`
+      });
+      if (user) {
+        user = await updateProfile({
+          userId: user.id,
+          username: matchedFighter.slug,
+          displayName: matchedFighter.name,
+          bio: matchedFighter.bio,
+          website: "https://nu-bi.com",
+          location: "NU-BI",
+          avatarUrl: null,
+          isPrivate: false
         });
-        if (user) {
-          user = await updateProfile({
-            userId: user.id,
-            username: fighter.slug,
-            displayName: `Nova // ${fighter.name}`,
-            bio: fighter.bio,
-            website: "https://nu-bi.com",
-            location: "NU-BI Arena",
-            avatarUrl: null,
-            isPrivate: false
-          });
-        }
-      } catch {
-        user = await getUserByUsername(username);
       }
+    } catch {
+      user =
+        (await getUserByUsername(matchedFighter.slug)) ??
+        (await getUserByUsername(matchedFighter.legacySlug));
     }
   }
   if (!user) {

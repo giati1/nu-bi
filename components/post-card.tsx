@@ -16,7 +16,6 @@ import {
   Share2,
   ShieldAlert,
   Sparkles,
-  Swords,
   Trash2,
   Zap
 } from "lucide-react";
@@ -34,11 +33,11 @@ import { cn, formatRelativeDate } from "@/lib/utils";
 import type { FeedPost } from "@/types/domain";
 
 const SUMMON_OPTIONS = [
-  { slug: null, label: "⚔️ 2-Persona Clash", single: false },
-  { slug: "nova_hype", label: "⚡ Hype-Man", single: true },
-  { slug: "nova_purist", label: "⌘ Tech Purist", single: true },
-  { slug: "nova_advocate", label: "🔥 Devil's Advocate", single: true },
-  { slug: "nova_director", label: "👑 Director", single: true }
+  { slug: null, label: "🔥 Full Room", single: false },
+  { slug: "marcusvance", label: "Marcus Vance", single: true },
+  { slug: "elenarostova", label: "Elena Rostova", single: true },
+  { slug: "jaxmercer", label: "Jax Mercer", single: true },
+  { slug: "sorenvale", label: "Soren Vale", single: true }
 ] as const;
 
 export function PostCard({
@@ -74,7 +73,7 @@ export function PostCard({
   }
 
   async function handleSummonPersona(
-    personaSlug: "nova_hype" | "nova_purist" | "nova_advocate" | "nova_director" | null,
+    personaSlug: "marcusvance" | "elenarostova" | "jaxmercer" | "sorenvale" | null,
     label: string,
     singlePersona: boolean
   ) {
@@ -183,15 +182,15 @@ export function PostCard({
             )}
             disabled={Boolean(summoningLabel)}
             onClick={() => setShowSummonBar((current) => !current)}
-            title="Summon Nova AI Personas into this post"
+            title="Boost this post into the active Pulse wave"
             type="button"
           >
             {summoningLabel ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-300" />
             ) : (
-              <Swords className="h-3.5 w-3.5 text-cyan-300" />
+              <Zap className="h-3.5 w-3.5 text-cyan-300" />
             )}
-            <span>{summoningLabel ? "AI Entering..." : "Summon AI"}</span>
+            <span>{summoningLabel ? "Boosting..." : "Boost"}</span>
           </button>
           {Boolean(viewerId) && post.author.id === viewerId ? (
             <Link
@@ -246,12 +245,12 @@ export function PostCard({
         </div>
       </div>
 
-      {/* 1-Click Summon AI Persona Drawer */}
+      {/* 1-Click Boost / Ping Voices Drawer */}
       {showSummonBar ? (
         <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-400/30 bg-[linear-gradient(135deg,rgba(6,182,212,0.12),rgba(139,92,246,0.12))] p-3">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
             <Zap className="h-3.5 w-3.5 text-cyan-300" />
-            Deploy AI Fighter to this thread:
+            Ping into this thread:
           </span>
           <div className="flex flex-wrap gap-1.5">
             {SUMMON_OPTIONS.map((opt) => (
@@ -272,7 +271,7 @@ export function PostCard({
         <div className="mt-3.5 flex items-center gap-2.5 rounded-2xl border border-cyan-400/35 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-200">
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" />
           <span>
-            Nova Multiplexer is dispatching <strong>{summoningLabel}</strong> to debate this post live...
+            Boosting thread to <strong>{summoningLabel}</strong> — new replies incoming...
           </span>
         </div>
       ) : null}
@@ -422,30 +421,30 @@ export function PostCard({
         </div>
       ) : null}
 
-      {/* Live Arena Crossfire Replies + Inline Quick Reply */}
+      {/* Live Thread Replies + Inline Quick Reply */}
       <div className="mt-5 rounded-[24px] border border-white/[0.08] bg-black/40 p-3.5 md:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
             <Sparkles className="h-3.5 w-3.5" />
-            Live Arena Replies ({post.commentCount})
+            Active Thread ({post.commentCount})
           </span>
           <div className="flex items-center gap-3">
             {previewComments.length === 0 ? (
               <button
                 className="inline-flex items-center gap-1 text-xs font-semibold text-purple-300 transition hover:text-white"
                 disabled={Boolean(summoningLabel)}
-                onClick={() => handleSummonPersona(null, "⚔️ 2-Persona Clash", false)}
+                onClick={() => handleSummonPersona(null, "Full Room", false)}
                 type="button"
               >
                 <Zap className="h-3 w-3" />
-                Trigger AI Crossfire
+                Boost Thread
               </button>
             ) : null}
             <Link
               className="text-xs font-medium text-white/65 transition hover:text-white"
               href={`/post/${post.id}`}
             >
-              Open full debate →
+              View full thread →
             </Link>
           </div>
         </div>
@@ -488,7 +487,7 @@ export function PostCard({
           </div>
         ) : (
           <p className="text-xs text-white/45">
-            No replies yet — drop a comment below or click <strong>Summon AI</strong> to watch two personas clash on this post.
+            Be the first to reply below, or tap <strong>Boost</strong> to push this post into the active room.
           </p>
         )}
 
@@ -498,7 +497,7 @@ export function PostCard({
           onSubmit={(event) => {
             event.preventDefault();
             if (!isAuthenticated) {
-              openAuthModal("Sign in to jump into this Arena debate.", `/post/${post.id}`);
+              openAuthModal("Sign in to join the conversation.", `/post/${post.id}`);
               return;
             }
             if (!quickReply.trim()) {
@@ -516,7 +515,7 @@ export function PostCard({
               });
               if (response.ok) {
                 setQuickReply("");
-                setSummoningLabel("AI Persona Reply");
+                setSummoningLabel("Community");
                 router.refresh();
                 window.setTimeout(() => router.refresh(), 4000);
                 window.setTimeout(() => {
@@ -533,10 +532,10 @@ export function PostCard({
             onChange={(event) => setQuickReply(event.target.value)}
             onFocus={() => {
               if (!isAuthenticated) {
-                openAuthModal("Sign in to reply or challenge an AI persona.", `/post/${post.id}`);
+                openAuthModal("Sign in to reply to this thread.", `/post/${post.id}`);
               }
             }}
-            placeholder="Reply or tag @nova_hype / @nova_purist / @nova_advocate..."
+            placeholder="Add a reply or tag @marcusvance / @elenarostova..."
             type="text"
             value={quickReply}
           />

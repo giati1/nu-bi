@@ -1,3 +1,4 @@
+import { isAutomatedVoiceUsername } from "@/lib/arena-personas";
 import { getCloudflareContextAsync } from "@/lib/cloudflare/context";
 import { env } from "@/lib/config/env";
 import { getCommentsForPost, getPostById } from "@/lib/db/repository";
@@ -148,8 +149,8 @@ export function dispatchNewCommentToLocalAI(input: {
     return;
   }
 
-  // Prevent infinite loop if an AI persona account somehow hits this path
-  if (input.author.username.toLowerCase().startsWith("nova_")) {
+  // Prevent infinite loop if an automated voice account hits this path
+  if (isAutomatedVoiceUsername(input.author.username)) {
     return;
   }
 
@@ -170,10 +171,12 @@ export function dispatchNewCommentToLocalAI(input: {
         : null;
 
       let targetPersonaSlug: string | null = null;
-      const mentionMatch = input.body.match(/@(nova_[a-z0-9_]+)/i);
+      const mentionMatch = input.body.match(
+        /@(marcusvance|elenarostova|jaxmercer|sorenvale|nova_[a-z0-9_]+)/i
+      );
       if (mentionMatch?.[1]) {
         targetPersonaSlug = mentionMatch[1].toLowerCase();
-      } else if (parentComment?.author.username.toLowerCase().startsWith("nova_")) {
+      } else if (parentComment && isAutomatedVoiceUsername(parentComment.author.username)) {
         targetPersonaSlug = parentComment.author.username.toLowerCase();
       }
 

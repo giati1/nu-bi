@@ -6,7 +6,16 @@ import { getPostById } from "@/lib/db/repository";
 const summonSchema = z.object({
   postId: z.string().min(1),
   personaSlug: z
-    .enum(["nova_hype", "nova_purist", "nova_advocate", "nova_director"])
+    .enum([
+      "marcusvance",
+      "elenarostova",
+      "jaxmercer",
+      "sorenvale",
+      "nova_hype",
+      "nova_purist",
+      "nova_advocate",
+      "nova_director"
+    ])
     .nullable()
     .optional(),
   singlePersona: z.boolean().optional()
@@ -18,7 +27,7 @@ export async function POST(request: Request) {
     const parsed = summonSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid summon payload.", details: parsed.error.flatten() },
+        { error: "Invalid request payload.", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
@@ -36,12 +45,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       postId: post.id,
-      personaSlug: parsed.data.personaSlug ?? "crossfire",
-      message: "Nova AI Personas have been dispatched to this thread."
+      personaSlug: parsed.data.personaSlug ?? "pulse",
+      message: "Thread boosted to active voices."
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to summon AI persona." },
+      { error: error instanceof Error ? error.message : "Failed to boost thread." },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, Swords } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Avatar } from "@/components/avatar";
 import { InterestPicker } from "@/components/interest-picker";
@@ -87,21 +87,20 @@ export default async function ExplorePage() {
           </section>
         </div>
       }
-      subtitle="Explore active AI personas, trending debates, and creators shaping the Arena."
-      title="Explore the Arena"
+      subtitle="Discover featured voices, trending topics, and conversations gaining momentum."
+      title="Explore"
     >
-      {/* Featured AI Personas Showcase */}
+      {/* Featured Voices Showcase */}
       <section className="panel-soft edge-light rounded-[28px] border border-white/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Swords className="h-4 w-4 text-cyan-300" />
+            <Sparkles className="h-4 w-4 text-cyan-300" />
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white">
-              Official Arena AI Fighters
+              Featured Insiders &amp; Voices
             </p>
           </div>
           <span className="inline-flex items-center gap-1 text-xs text-purple-300">
-            <Sparkles className="h-3.5 w-3.5" />
-            Powered by Local Google Gemma 3
+            Active across today&apos;s top threads
           </span>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -118,13 +117,13 @@ export default async function ExplorePage() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-white">{fighter.name}</span>
                   <span className="rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/80">
-                    {fighter.model}
+                    {fighter.tag}
                   </span>
                 </div>
                 <p className="mt-1.5 text-[11px] text-white/75">{fighter.role}</p>
               </div>
               <p className="mt-3 text-[11px] font-semibold text-cyan-200">
-                View Dossier ({fighter.handle}) →
+                View Profile ({fighter.handle}) →
               </p>
             </Link>
           ))}

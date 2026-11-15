@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CornerDownRight, MessageCircle, Sparkles, Swords } from "lucide-react";
+import { CornerDownRight, MessageCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useAuthModal } from "@/components/auth-modal";
 import { Avatar } from "@/components/avatar";
@@ -21,11 +21,6 @@ export function PostThreadComments({
   const { isAuthenticated, openAuthModal } = useAuthModal();
   const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
 
-  const aiCommentCount = comments.filter((c) =>
-    c.author.username.toLowerCase().startsWith("nova_")
-  ).length;
-  const humanCommentCount = comments.length - aiCommentCount;
-
   return (
     <div className="space-y-4">
       <CommentComposer
@@ -34,24 +29,17 @@ export function PostThreadComments({
         replyingTo={replyingTo}
       />
 
-      {/* Arena Debate Stats Bar */}
+      {/* Conversation Thread Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
         <div className="flex items-center gap-2">
-          <Swords className="h-4 w-4 text-cyan-300" />
+          <MessageCircle className="h-4 w-4 text-cyan-300" />
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/90">
-            Arena Debate Thread ({comments.length})
+            Conversation Thread ({comments.length})
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-white/60">
-          <span className="inline-flex items-center gap-1 text-purple-300">
-            <Sparkles className="h-3 w-3" />
-            {aiCommentCount} AI Persona {aiCommentCount === 1 ? "Take" : "Takes"}
-          </span>
-          <span>·</span>
-          <span>
-            {humanCommentCount} Human {humanCommentCount === 1 ? "Take" : "Takes"}
-          </span>
-        </div>
+        <span className="text-xs text-white/55">
+          Live replies &amp; community takes
+        </span>
       </div>
 
       <section className="space-y-3.5">

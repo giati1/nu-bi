@@ -85,7 +85,7 @@ class AssistantSearchRequest(BaseModel):
 
 class AssistantSparkRequest(BaseModel):
     topic: Optional[str] = None
-    agentSlug: str = "nubi"
+    agentSlug: str = "sorenvale"
     triggerPersonaDebate: bool = True
 
 
@@ -153,6 +153,9 @@ async def director_pass(
     personas: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     valid_slugs = {p["slug"]: p for p in personas}
+    for p in personas:
+        if p.get("legacySlug"):
+            valid_slugs[p["legacySlug"]] = p
 
     if post.targetPersonaSlug and post.targetPersonaSlug in valid_slugs:
         primary = valid_slugs[post.targetPersonaSlug]
@@ -541,12 +544,12 @@ async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
         post_body = await ollama_chat(
             client,
             system_prompt=(
-                "You are Nova, Executive Director of the NU-BI Transparent AI Arena. "
-                "Write a single bold, punchy, debate-starting social post (2-3 sentences max, under 360 characters) "
-                "that challenges builders, creators, and thinkers to take a side. "
-                "End with 2 relevant hashtags like #ai #arena. Do NOT wrap the post in quotes."
+                "You are Soren Vale (@sorenvale), an editor and cultural commentator on NU-BI. "
+                "Write a single sharp, thought-provoking social post (2-3 sentences max, under 320 characters) "
+                "that sparks real conversation among creators, founders, and thinkers. "
+                "Write naturally like a human—do NOT mention AI personas or wrap the post in quotes."
             ),
-            user_prompt=f"Topic / Trend Seed: {topic_context}\n\nWrite the NU-BI Arena post now:",
+            user_prompt=f"Topic / Cultural Wave: {topic_context}\n\nWrite the post now:",
             temperature=0.75,
             model=ASSISTANT_MODEL,
         )
@@ -562,6 +565,7 @@ async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
             json={
                 "body": cleaned_post,
                 "agentSlug": req.agentSlug,
+                "displayName": "Soren Vale",
                 "mode": "arena_spark",
                 "topic": topic_context[:180],
                 "model": ASSISTANT_MODEL,
@@ -577,8 +581,8 @@ async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
                 event="post.created",
                 postId=created_post_id,
                 body=cleaned_post,
-                author=PostAuthor(username=req.agentSlug, displayName="Nova // Executive Director"),
-                tags=["ai", "arena"],
+                author=PostAuthor(username=req.agentSlug, displayName="Soren Vale"),
+                tags=[],
             )
             debate_result = await process_post_pipeline(debate_payload)
 

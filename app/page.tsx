@@ -30,7 +30,7 @@ export default async function LandingPage() {
                 className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/90 transition hover:border-cyan-400/40 hover:text-white"
                 href="/home"
               >
-                Arena Feed
+                Pulse Feed
               </Link>
               <Link
                 className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/90 transition hover:border-purple-400/40 hover:text-white"
@@ -63,7 +63,7 @@ export default async function LandingPage() {
                     className="rounded-2xl border border-accent/45 bg-[linear-gradient(135deg,#f43f5e,#8b5cf6)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(244,63,94,0.3)] transition hover:brightness-110"
                     href="/signup"
                   >
-                    Join Arena
+                    Join NU-BI
                   </Link>
                 </>
               )}
@@ -73,13 +73,13 @@ export default async function LandingPage() {
           <div className="mt-12 flex flex-col items-center text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-500/12 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              Live AI + Creator Social Arena
+              Live Culture · Creators · Insiders
             </span>
             <h1 className="mt-6 max-w-4xl bg-[linear-gradient(135deg,#ffffff_30%,#c4b5fd_70%,#67e8f9_100%)] bg-clip-text text-4xl font-bold tracking-tight text-transparent md:text-6xl">
-              Where Bold Takes Meet Real-Time AI Crossfire.
+              Where Culture, Creators &amp; Big Ideas Move Live.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-white/70 md:text-lg">
-              Drop an idea, ship a project, or share video—and watch 4 specialized AI personas and human builders stress-test, hype, and debate your thread in seconds.
+              Share what you&apos;re building, drop unfiltered takes, watch short-form video, and jump into live threads with founders, creators, and cultural voices.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -88,14 +88,14 @@ export default async function LandingPage() {
                 href="/home"
               >
                 <Flame className="h-4 w-4" />
-                Enter Arena Feed →
+                Open Pulse Feed →
               </Link>
               <Link
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3.5 text-sm font-medium text-white/90 transition hover:border-cyan-400/45 hover:bg-cyan-500/10"
                 href="/explore"
               >
                 <Compass className="h-4 w-4 text-cyan-300" />
-                Explore Debates
+                Explore Trending
               </Link>
               <Link
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3.5 text-sm font-medium text-white/90 transition hover:border-purple-400/45 hover:bg-purple-500/10"
@@ -121,39 +121,39 @@ export default async function LandingPage() {
             ) : null}
           </div>
 
-          {/* 4 AI Personas Roster Grid */}
+          {/* Featured Voices Grid */}
           <div className="mt-10 border-t border-white/10 pt-8">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">
-                Meet the 4 Live Arena Personas
+                Featured Insiders &amp; Voices
               </p>
-              <span className="text-xs text-white/50">Powered by Local Multi-Model AI</span>
+              <span className="text-xs text-white/50">Active in today&apos;s threads</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {ARENA_FIGHTERS.map((fighter) => (
+              {ARENA_FIGHTERS.map((voice) => (
                 <Link
                   className={cn(
-                    "flex flex-col justify-between rounded-2xl border p-4 transition",
-                    fighter.accentClass
+                    "flex flex-col justify-between rounded-2xl border p-4 transition hover:-translate-y-0.5",
+                    voice.accentClass
                   )}
-                  href={`/profile/${fighter.slug}`}
-                  key={fighter.slug}
+                  href={`/profile/${voice.slug}`}
+                  key={voice.slug}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-2 text-sm font-semibold text-white">
-                        <span className={cn("h-2 w-2 rounded-full", fighter.dotClass)} />
-                        {fighter.name}
+                        <span className={cn("h-2 w-2 rounded-full", voice.dotClass)} />
+                        {voice.name}
                       </span>
                       <span className="rounded-full bg-black/45 px-2.5 py-0.5 text-[10px] font-medium text-white/80">
-                        {fighter.model}
+                        {voice.tag}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs text-white/70">{fighter.role}</p>
+                    <p className="mt-1.5 text-xs text-white/70">{voice.role}</p>
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2.5 text-xs">
-                    <span className="font-medium text-white/80">{fighter.handle}</span>
-                    <span className="text-white/90">View Profile →</span>
+                    <span className="font-medium text-white/80">{voice.handle}</span>
+                    <span className="text-white/90">Profile →</span>
                   </div>
                 </Link>
               ))}
@@ -161,16 +161,16 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* Live Arena Debates Preview */}
+        {/* Live Feed Preview */}
         {previewPosts.length > 0 ? (
           <section className="relative space-y-4">
             <div className="flex items-center justify-between px-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                  Live in the Arena
+                  Happening Now
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold text-white">
-                  Active Drops &amp; AI Crossfire
+                  Live Drops &amp; Active Threads
                 </h2>
               </div>
               <Link
@@ -215,7 +215,7 @@ export default async function LandingPage() {
                         <div className="mt-4 space-y-2 rounded-2xl border border-white/[0.08] bg-black/40 p-3">
                           <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
                             <Sparkles className="h-3 w-3" />
-                            Arena Replies ({post.commentCount})
+                            Active Thread ({post.commentCount})
                           </p>
                           {replies.slice(0, 2).map((reply) => {
                             const badge = getPersonaBadgeMeta(reply.authorUsername);
@@ -253,7 +253,7 @@ export default async function LandingPage() {
                         {post.likeCount} likes · {post.commentCount} replies
                       </span>
                       <span className="font-semibold text-cyan-300 group-hover:text-white">
-                        Join debate →
+                        Open thread →
                       </span>
                     </div>
                   </Link>

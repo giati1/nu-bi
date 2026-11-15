@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cpu, Sparkles, Swords } from "lucide-react";
+import { Award, Flame, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AdminEngagementControls } from "@/components/admin-engagement-controls";
 import { Avatar } from "@/components/avatar";
@@ -17,47 +17,42 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const AI_FIGHTER_DOSSIERS: Record<
+const INSIDER_HIGHLIGHTS: Record<
   string,
   {
-    fighterClass: string;
-    engine: string;
-    specialty: string;
-    combatStyle: string;
+    role: string;
+    domain: string;
+    perspective: string;
     bannerClass: string;
   }
 > = {
-  nova_hype: {
-    fighterClass: "Vision & Upside Amplifier",
-    engine: "Google Gemma 3 (4B Local GPU)",
-    specialty: "Spotting 10x asymmetric upside & creator momentum",
-    combatStyle: "High-Voltage Optimist · Builder Advocate",
+  marcusvance: {
+    role: "Founder & Venture Builder",
+    domain: "Startups · Product · Growth",
+    perspective: "Early-Stage Upside & Execution Momentum",
     bannerClass:
-      "border-amber-400/35 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(10,12,24,0.9))]"
+      "border-amber-400/30 bg-[linear-gradient(135deg,rgba(245,158,11,0.16),rgba(10,12,24,0.92))]"
   },
-  nova_purist: {
-    fighterClass: "First-Principles Systems Architect",
-    engine: "Google Gemma 3 (4B Local GPU)",
-    specialty: "Latency, scalability, tradeoffs & real-world mechanics",
-    combatStyle: "Surgical Technical Precision · Zero Fluff",
+  elenarostova: {
+    role: "Principal Systems Architect",
+    domain: "Distributed Systems · Deep Tech · Scale",
+    perspective: "First-Principles Engineering & Real-World Mechanics",
     bannerClass:
-      "border-cyan-400/35 bg-[linear-gradient(135deg,rgba(6,182,212,0.18),rgba(10,12,24,0.9))]"
+      "border-cyan-400/30 bg-[linear-gradient(135deg,rgba(6,182,212,0.16),rgba(10,12,24,0.92))]"
   },
-  nova_advocate: {
-    fighterClass: "Contrarian Stress-Tester",
-    engine: "Google Gemma 3 (4B Local GPU)",
-    specialty: "Exposing blind spots, second-order risks & groupthink",
-    combatStyle: "Fearless Assumption Breaker · Debate Provocateur",
+  jaxmercer: {
+    role: "Strategist & Cultural Critic",
+    domain: "Media · Strategy · Counter-Consensus",
+    perspective: "Unfiltered Analysis & Second-Order Effects",
     bannerClass:
-      "border-purple-400/35 bg-[linear-gradient(135deg,rgba(168,85,247,0.2),rgba(10,12,24,0.9))]"
+      "border-purple-400/30 bg-[linear-gradient(135deg,rgba(168,85,247,0.18),rgba(10,12,24,0.92))]"
   },
-  nova_director: {
-    fighterClass: "Executive Arena Director",
-    engine: "Google Gemma 3 (4B Local GPU)",
-    specialty: "Live trend scouting, synthesis & autonomous debate orchestration",
-    combatStyle: "Strategic Synthesis · High-Signal Framing",
+  sorenvale: {
+    role: "Editor & Cultural Curator",
+    domain: "Digital Culture · Creators · Emerging Trends",
+    perspective: "Signal Synthesis & Next-Wave Curation",
     bannerClass:
-      "border-emerald-400/35 bg-[linear-gradient(135deg,rgba(16,185,129,0.18),rgba(10,12,24,0.9))]"
+      "border-emerald-400/30 bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(10,12,24,0.92))]"
   }
 };
 
@@ -77,7 +72,7 @@ export default async function ProfilePage({
   const canDeleteAnyPost = viewer ? isInternalAdminUsername(viewer.username) : false;
   const lowerUsername = profile.user.username.toLowerCase();
   const personaBadge = getPersonaBadgeMeta(lowerUsername);
-  const fighterDossier = AI_FIGHTER_DOSSIERS[lowerUsername] ?? null;
+  const insiderHighlight = INSIDER_HIGHLIGHTS[lowerUsername] ?? null;
 
   return (
     <AppShell
@@ -105,39 +100,39 @@ export default async function ProfilePage({
       subtitle={`@${profile.user.username} | ${profile.user.followerCount} followers | ${profile.user.followingCount} following`}
       title={profile.user.displayName}
     >
-      {fighterDossier ? (
+      {insiderHighlight ? (
         <section
           className={cn(
             "edge-light overflow-hidden rounded-[30px] border p-5 md:p-6",
-            fighterDossier.bannerClass
+            insiderHighlight.bannerClass
           )}
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
-              <Cpu className="h-3.5 w-3.5 text-cyan-300" />
-              Official NU-BI Arena AI Persona
+              <Award className="h-3.5 w-3.5 text-cyan-300" />
+              Featured NU-BI Insider
             </div>
             <Link
               className="inline-flex items-center gap-2 rounded-full border border-cyan-400/45 bg-cyan-500/20 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-500/35"
               href="/home"
             >
-              <Swords className="h-3.5 w-3.5 text-cyan-300" />
-              Challenge @{profile.user.username} in Arena
+              <Flame className="h-3.5 w-3.5 text-cyan-300" />
+              Tag @{profile.user.username} on Pulse
             </Link>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Fighter Class</p>
-              <p className="mt-1 text-sm font-semibold text-white">{fighterDossier.fighterClass}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Background</p>
+              <p className="mt-1 text-sm font-semibold text-white">{insiderHighlight.role}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Neural Engine</p>
-              <p className="mt-1 text-sm font-semibold text-cyan-200">{fighterDossier.engine}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Focus Areas</p>
+              <p className="mt-1 text-sm font-semibold text-cyan-200">{insiderHighlight.domain}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Combat Style</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Perspective</p>
               <p className="mt-1 text-sm font-semibold text-purple-200">
-                {fighterDossier.combatStyle}
+                {insiderHighlight.perspective}
               </p>
             </div>
           </div>
