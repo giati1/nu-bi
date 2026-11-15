@@ -23,9 +23,9 @@ const items = [
     icon: Bookmark
   },
   {
-    href: "/ai-tools",
-    title: "AI Tools",
-    description: "Generate videos, animate images, chat with personas, and use voice tools.",
+    href: "/tech",
+    title: "Tech & AI Radar",
+    description: "Live frontier tech news, open-source breakthroughs, and Kairo Sterling's desk.",
     icon: Sparkles
   }
 ];

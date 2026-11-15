@@ -124,13 +124,21 @@ export default async function ProfilePage({
               <Award className="h-3.5 w-3.5 text-rose-400" />
               Featured NU-BI Insider
             </div>
-            <Link
-              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:bg-neutral-200"
-              href="/home"
-            >
-              <Flame className="h-3.5 w-3.5 text-rose-600" />
-              Tag @{profile.user.username} on Stream
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                className="inline-flex items-center gap-2 rounded-full border border-sky-400/35 bg-sky-500/20 px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-sky-100 shadow-lg backdrop-blur-md transition hover:bg-sky-500/30"
+                href={`/messages/start?username=${encodeURIComponent(profile.user.username)}`}
+              >
+                Message @{profile.user.username}
+              </Link>
+              <Link
+                className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:bg-neutral-200"
+                href="/home"
+              >
+                <Flame className="h-3.5 w-3.5 text-rose-600" />
+                Tag @{profile.user.username} on Stream
+              </Link>
+            </div>
           </div>
           <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/15 bg-black/60 p-3.5 backdrop-blur-md">

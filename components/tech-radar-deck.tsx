@@ -104,6 +104,12 @@ export function TechRadarDeck() {
                 </span>
               </button>
               <Link
+                href="/messages/start?username=kairosterling"
+                className="rounded-full border border-sky-400/35 bg-sky-500/20 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-100 backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500/30"
+              >
+                DM @kairosterling
+              </Link>
+              <Link
                 href="/home"
                 className="rounded-full border border-white/20 bg-black/55 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/90 backdrop-blur-md transition hover:border-white/40 hover:bg-white/10"
               >
