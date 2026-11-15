@@ -133,13 +133,52 @@ export function toStoredFileUrl(storageKey: string) {
   return `${env.publicMediaBasePath.replace(/\/$/, "")}/${encodeURIComponent(storageKey)}`;
 }
 
+const FALLBACK_CINEMATIC_VIDEOS = [
+  "/cinematic/hero-loop.mp4",
+  "/cinematic/pulse-loop.mp4",
+  "/cinematic/culture-loop.mp4",
+  "/cinematic/creator-loop.mp4"
+];
+
+const FALLBACK_CINEMATIC_IMAGES = [
+  "/cinematic/shot-1.jpg",
+  "/cinematic/shot-2.jpg",
+  "/cinematic/shot-3.jpg",
+  "/cinematic/shot-4.jpg",
+  "/seed-ai/jontae/post-1.png",
+  "/seed-ai/jontae/post-2.png",
+  "/seed-ai/jontae/post-3.png"
+];
+
+function hashStringToIndex(input: string, modulo: number) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash % modulo;
+}
+
 export function normalizeStoredFileUrl(url: string | null | undefined, storageKey?: string | null) {
   if (!url && !storageKey) {
     return null;
   }
 
   if (!usesLocalStorage()) {
-    return url ?? null;
+    const raw = (url ?? storageKey ?? "").trim();
+    if (!raw) {
+      return null;
+    }
+    if (raw.startsWith("/uploads/") || (!raw.startsWith("/") && !raw.startsWith("http") && !raw.startsWith("data:"))) {
+      const lower = raw.toLowerCase();
+      if (lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov")) {
+        return FALLBACK_CINEMATIC_VIDEOS[hashStringToIndex(raw, FALLBACK_CINEMATIC_VIDEOS.length)];
+      }
+      if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".m4a")) {
+        return "/cinematic/pulse-sound.mp3";
+      }
+      return FALLBACK_CINEMATIC_IMAGES[hashStringToIndex(raw, FALLBACK_CINEMATIC_IMAGES.length)];
+    }
+    return raw;
   }
 
   if (storageKey) {

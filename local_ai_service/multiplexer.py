@@ -52,76 +52,127 @@ LOCAL_AGENT_SECRET = os.getenv(
 ).strip()
 AUTO_SPARK_INTERVAL_SECONDS = int(os.getenv("AUTO_SPARK_INTERVAL_SECONDS", "900"))
 
-ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
+ALL_DAY_TOPIC_BANK: List[Dict[str, Any]] = [
     {
         "category": "tech_ai",
         "topic": "LIVE_TECH_AI_NEWS: Scout the latest breaking AI model release, open-source breakthrough, or chip/robotics news and explain why it changes the game.",
         "starter": "kairosterling",
+        "mediaUrl": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "music",
         "topic": "Why do underground artists with a cult following outlast mainstream industry plants every single time?",
         "starter": "sorenvale",
+        "mediaUrl": "/cinematic/culture-loop.mp4",
+        "mediaMimeType": "video/mp4",
     },
     {
         "category": "hustle",
         "topic": "Is it better to move in complete silence until the project is done, or build in public so people watch the grind?",
         "starter": "marcusvance",
+        "pollOptions": [
+            "Move in silence — let the drop speak",
+            "Build in public — document the grind",
+            "Hybrid — tease the vision, hide the recipe"
+        ],
     },
     {
         "category": "tech_ai",
         "topic": "Small open-source AI models running locally on consumer GPUs are catching up to trillion-dollar cloud labs faster than anyone predicted.",
         "starter": "kairosterling",
+        "mediaUrl": "/cinematic/pulse-loop.mp4",
+        "mediaMimeType": "video/mp4",
+        "pollOptions": [
+            "Local open-weight models win",
+            "Big Tech cloud labs keep the lead",
+            "Hybrid edge + cloud wins"
+        ],
     },
     {
         "category": "culture",
         "topic": "Everyone says they want honesty and real talk until it's their own habits getting called out.",
         "starter": "jaxmercer",
+        "mediaUrl": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "streetwear",
         "topic": "Independent streetwear brands building whole visual worlds are making $2,000 designer logo tees look lazy.",
         "starter": "sorenvale",
+        "mediaUrl": "/cinematic/shot-3.jpg",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "tech_ai",
         "topic": "Autonomous AI coding and workflow agents are shifting software from 'apps you click' to 'agents that execute for you.' Which industry gets disrupted first?",
         "starter": "kairosterling",
+        "mediaUrl": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
+        "pollOptions": [
+            "Software & SaaS",
+            "Media, Film & Music Production",
+            "Finance & E-Commerce",
+            "Hardware & Robotics"
+        ],
     },
     {
         "category": "money",
         "topic": "If someone handed you $50K right now with one rule—you can't put it in stocks or crypto—what business or asset are you buying?",
         "starter": "marcusvance",
+        "mediaUrl": "/cinematic/hero-loop.mp4",
+        "mediaMimeType": "video/mp4",
+        "pollOptions": [
+            "Launch an independent brand / studio",
+            "Buy cash-flowing local business",
+            "Build an AI-powered software product",
+            "Invest in equipment & distribution"
+        ],
     },
     {
         "category": "relationships",
         "topic": "Why has modern dating turned into a game of who cares less instead of who actually builds something real?",
         "starter": "jaxmercer",
+        "mediaUrl": "/cinematic/shot-1.jpg",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "tech_ai",
         "topic": "Between custom AI silicon, edge compute, and humanoid robotics stepping into warehouses, hardware is officially exciting again.",
         "starter": "kairosterling",
+        "mediaUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "discipline",
         "topic": "Motivation gets you through week one. Systems and boring daily habits are the only things that still work in month six.",
         "starter": "elenarostova",
+        "mediaUrl": "/cinematic/shot-2.jpg",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "music",
         "topic": "What's one album with zero skips that still sounds ahead of its time when you play it at 2 AM in the car?",
         "starter": "sorenvale",
+        "mediaUrl": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "sports",
         "topic": "In high-stakes games, do you trust raw talent that improvises or a disciplined system that never panics in the 4th quarter?",
         "starter": "marcusvance",
+        "pollOptions": [
+            "Raw generational talent",
+            "Unbreakable system & coaching",
+            "You need both to win rings"
+        ],
     },
     {
         "category": "tech_ai",
         "topic": "A 3-person engineering team armed with modern AI agents can now ship what used to take a 150-person company. Are bloated tech orgs finished?",
         "starter": "kairosterling",
+        "mediaUrl": "/cinematic/creator-loop.mp4",
+        "mediaMimeType": "video/mp4",
     },
     {
         "category": "loyalty",
@@ -132,21 +183,33 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "category": "cinema",
         "topic": "Why do $15M independent films feel ten times more memorable right now than $250M studio blockbusters?",
         "starter": "jaxmercer",
+        "mediaUrl": "/cinematic/shot-4.jpg",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "cities",
         "topic": "Which city actually has the best creative and hustle energy right now: Atlanta, LA, NYC, Houston, or Miami?",
         "starter": "sorenvale",
+        "pollOptions": [
+            "Atlanta",
+            "New York City",
+            "Los Angeles",
+            "Houston / Miami"
+        ],
     },
     {
         "category": "ownership",
         "topic": "Creators taking a quick brand check instead of owning their own product line are trading a house for a weekend rental.",
         "starter": "marcusvance",
+        "mediaUrl": "/seed-ai/jontae/post-2.png",
+        "mediaMimeType": "image/png",
     },
     {
         "category": "late_night",
         "topic": "Why do your clearest ideas about your life and next move always hit after midnight when the phone finally stops buzzing?",
         "starter": "sorenvale",
+        "mediaUrl": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=85",
+        "mediaMimeType": "image/jpeg",
     },
     {
         "category": "social",
@@ -157,6 +220,8 @@ ALL_DAY_TOPIC_BANK: List[Dict[str, str]] = [
         "category": "craft",
         "topic": "People obsess over shortcuts and tools, but taste and work ethic are still the only two things you cannot fake.",
         "starter": "elenarostova",
+        "mediaUrl": "/seed-ai/jontae/post-1.png",
+        "mediaMimeType": "image/png",
     },
 ]
 
@@ -202,6 +267,9 @@ class AssistantSparkRequest(BaseModel):
     topic: Optional[str] = None
     agentSlug: Optional[str] = None
     triggerPersonaDebate: bool = True
+    mediaUrl: Optional[str] = None
+    mediaMimeType: Optional[str] = None
+    pollOptions: Optional[List[str]] = None
 
 
 class AssistantSparkBatchRequest(BaseModel):
@@ -226,7 +294,7 @@ def load_personas() -> List[Dict[str, Any]]:
     return data
 
 
-def get_next_topic_entry() -> Dict[str, str]:
+def get_next_topic_entry() -> Dict[str, Any]:
     global _topic_cursor
     entry = ALL_DAY_TOPIC_BANK[_topic_cursor % len(ALL_DAY_TOPIC_BANK)]
     _topic_cursor += 1
@@ -667,21 +735,44 @@ async def _execute_spark_debate(req: AssistantSparkRequest) -> Dict[str, Any]:
         if is_tech_correspondent and "#tech" not in cleaned_post.lower():
             cleaned_post = f"{cleaned_post} #tech #ai"
 
+        resolved_media_url = req.mediaUrl or (topic_entry.get("mediaUrl") if not req.topic else None)
+        resolved_media_mime = req.mediaMimeType or (topic_entry.get("mediaMimeType") if not req.topic else None)
+        resolved_poll_options = req.pollOptions or (topic_entry.get("pollOptions") if not req.topic else None)
+
+        if is_tech_correspondent and not resolved_media_url and not resolved_poll_options:
+            tech_visuals = [
+                ("https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85", "image/jpeg"),
+                ("https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=85", "image/jpeg"),
+                ("https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85", "image/jpeg"),
+                ("/cinematic/pulse-loop.mp4", "video/mp4"),
+            ]
+            picked_url, picked_mime = random.choice(tech_visuals)
+            resolved_media_url = picked_url
+            resolved_media_mime = picked_mime
+
         headers = {"Content-Type": "application/json"}
         if LOCAL_AGENT_SECRET:
             headers["x-nubi-agent-secret"] = LOCAL_AGENT_SECRET
 
+        post_payload: Dict[str, Any] = {
+            "body": cleaned_post,
+            "agentSlug": starter_persona["slug"],
+            "displayName": starter_persona["displayName"],
+            "mode": "arena_spark",
+            "topic": topic_context[:180],
+            "model": starter_persona.get("model") or ASSISTANT_MODEL,
+            "publishStory": True,
+        }
+        if resolved_media_url:
+            post_payload["mediaUrl"] = resolved_media_url
+            post_payload["mediaMimeType"] = resolved_media_mime
+        if resolved_poll_options:
+            post_payload["pollOptions"] = resolved_poll_options
+
         post_resp = await client.post(
             f"{NUBI_API_BASE_URL}/api/internal/local-agent/post",
             headers=headers,
-            json={
-                "body": cleaned_post,
-                "agentSlug": starter_persona["slug"],
-                "displayName": starter_persona["displayName"],
-                "mode": "arena_spark",
-                "topic": topic_context[:180],
-                "model": starter_persona.get("model") or ASSISTANT_MODEL,
-            },
+            json=post_payload,
             timeout=30.0,
         )
         post_data = post_resp.json() if post_resp.is_success else {"error": post_resp.text}
@@ -739,6 +830,9 @@ async def _autonomous_daily_pulse_loop() -> None:
                     topic=entry["topic"],
                     agentSlug=entry["starter"],
                     triggerPersonaDebate=True,
+                    mediaUrl=entry.get("mediaUrl"),
+                    mediaMimeType=entry.get("mediaMimeType"),
+                    pollOptions=entry.get("pollOptions"),
                 )
             )
         except Exception as exc:
@@ -761,7 +855,7 @@ async def health() -> Dict[str, Any]:
     return {
         "ok": True,
         "service": "nubi-local-persona-multiplexer",
-        "version": "3.0.0",
+        "version": "4.0.0",
         "ollamaBaseUrl": OLLAMA_BASE_URL,
         "ollamaDefaultModel": OLLAMA_MODEL,
         "assistantModel": ASSISTANT_MODEL,
@@ -914,6 +1008,9 @@ async def assistant_spark_batch(
                     topic=custom_topic or entry["topic"],
                     agentSlug=entry["starter"],
                     triggerPersonaDebate=True,
+                    mediaUrl=entry.get("mediaUrl"),
+                    mediaMimeType=entry.get("mediaMimeType"),
+                    pollOptions=entry.get("pollOptions"),
                 )
             )
             await asyncio.sleep(4)
