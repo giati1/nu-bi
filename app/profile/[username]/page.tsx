@@ -4,6 +4,7 @@ import { Award, Flame, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AdminEngagementControls } from "@/components/admin-engagement-controls";
 import { Avatar } from "@/components/avatar";
+import { BackgroundVideo } from "@/components/background-video";
 import { FollowButton } from "@/components/follow-button";
 import { MessageComposer } from "@/components/message-composer";
 import { PostCard } from "@/components/post-card";
@@ -103,35 +104,45 @@ export default async function ProfilePage({
       {insiderHighlight ? (
         <section
           className={cn(
-            "edge-light overflow-hidden rounded-[30px] border p-5 md:p-6",
-            insiderHighlight.bannerClass
+            "group relative overflow-hidden rounded-[30px] border border-white/15 bg-black p-5 shadow-[0_24px_70px_rgba(0,0,0,0.75)] md:p-6"
           )}
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
-              <Award className="h-3.5 w-3.5 text-cyan-300" />
+          <BackgroundVideo
+            src={personaBadge?.videoUrl ?? "/cinematic/hero-loop.mp4"}
+            poster={personaBadge?.coverImageUrl ?? "/cinematic/shot-1.jpg"}
+            overlayStyle="hero"
+          />
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white backdrop-blur-md">
+              <Award className="h-3.5 w-3.5 text-rose-400" />
               Featured NU-BI Insider
             </div>
             <Link
-              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/45 bg-cyan-500/20 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-500/35"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-black shadow-lg transition hover:bg-neutral-200"
               href="/home"
             >
-              <Flame className="h-3.5 w-3.5 text-cyan-300" />
-              Tag @{profile.user.username} on Pulse
+              <Flame className="h-3.5 w-3.5 text-rose-600" />
+              Tag @{profile.user.username} on Stream
             </Link>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Background</p>
-              <p className="mt-1 text-sm font-semibold text-white">{insiderHighlight.role}</p>
+          <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/15 bg-black/60 p-3.5 backdrop-blur-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                Background
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">{insiderHighlight.role}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Focus Areas</p>
-              <p className="mt-1 text-sm font-semibold text-cyan-200">{insiderHighlight.domain}</p>
+            <div className="rounded-2xl border border-white/15 bg-black/60 p-3.5 backdrop-blur-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                Focus Areas
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">{insiderHighlight.domain}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/35 p-3.5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">Perspective</p>
-              <p className="mt-1 text-sm font-semibold text-purple-200">
+            <div className="rounded-2xl border border-white/15 bg-black/60 p-3.5 backdrop-blur-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                Perspective
+              </p>
+              <p className="mt-1 text-sm font-bold text-rose-200">
                 {insiderHighlight.perspective}
               </p>
             </div>

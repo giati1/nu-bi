@@ -119,7 +119,11 @@ type StoryRow = {
 };
 
 function mapUser(row: UserRow): ViewerRecord {
-  const identity = resolvePublicVoiceIdentity(row.username, row.display_name);
+  const identity = resolvePublicVoiceIdentity(
+    row.username,
+    row.display_name,
+    normalizeStoredFileUrl(row.avatar_url)
+  );
   const fighter = ARENA_FIGHTERS.find(
     (f) => f.slug === identity.username || f.legacySlug === row.username.toLowerCase()
   );
@@ -128,7 +132,7 @@ function mapUser(row: UserRow): ViewerRecord {
     email: row.email,
     username: identity.username,
     displayName: identity.displayName,
-    avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+    avatarUrl: identity.avatarUrl,
     bio: fighter ? fighter.bio : row.bio,
     voiceIntroUrl: normalizeStoredFileUrl(row.voice_intro_url),
     voiceIntroMimeType: row.voice_intro_mime_type ?? null,
@@ -177,7 +181,11 @@ function mapPost(
   }> = []
 ) {
   return rows.map<FeedPost>((row) => {
-    const authorIdentity = resolvePublicVoiceIdentity(row.username, row.display_name);
+    const authorIdentity = resolvePublicVoiceIdentity(
+      row.username,
+      row.display_name,
+      normalizeStoredFileUrl(row.avatar_url)
+    );
     return {
     id: row.id,
     body: sanitizePublicVoiceText(row.body),
@@ -189,7 +197,7 @@ function mapPost(
       id: row.user_id,
       username: authorIdentity.username,
       displayName: authorIdentity.displayName,
-      avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+      avatarUrl: authorIdentity.avatarUrl,
       bio: row.bio
     },
     media: mediaRows
@@ -259,14 +267,18 @@ function mapPost(
       .filter((item) => item.post_id === row.id && item.body.trim().length > 0)
       .slice(-3)
       .map((item) => {
-        const cIdent = resolvePublicVoiceIdentity(item.username, item.display_name);
+        const cIdent = resolvePublicVoiceIdentity(
+          item.username,
+          item.display_name,
+          normalizeStoredFileUrl(item.avatar_url)
+        );
         return {
           id: item.id,
           body: sanitizePublicVoiceText(item.body),
           createdAt: item.created_at,
           authorUsername: cIdent.username,
           authorDisplayName: cIdent.displayName,
-          authorAvatarUrl: normalizeStoredFileUrl(item.avatar_url)
+          authorAvatarUrl: cIdent.avatarUrl
         };
       })
   };
@@ -1638,7 +1650,11 @@ export async function getCommentsForPost(postId: string) {
 
   const commentsById = new Map<string, CommentRecord>();
   for (const row of rows) {
-    const cIdent = resolvePublicVoiceIdentity(row.username, row.display_name);
+    const cIdent = resolvePublicVoiceIdentity(
+      row.username,
+      row.display_name,
+      normalizeStoredFileUrl(row.avatar_url)
+    );
     commentsById.set(row.id, {
       id: row.id,
       body: sanitizePublicVoiceText(row.body),
@@ -1650,7 +1666,7 @@ export async function getCommentsForPost(postId: string) {
         id: row.user_id,
         username: cIdent.username,
         displayName: cIdent.displayName,
-        avatarUrl: normalizeStoredFileUrl(row.avatar_url),
+        avatarUrl: cIdent.avatarUrl,
         bio: row.bio
       }
     });

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ArenaQuickComposer } from "@/components/arena-quick-composer";
+import { BackgroundVideo } from "@/components/background-video";
 import { EmptyState } from "@/components/empty-state";
-import { HomeAIToolsPanel } from "@/components/home-ai-tools-panel";
 import { HomeStoriesPanel } from "@/components/home-stories-panel";
 import { MoodFeedPanel } from "@/components/mood-feed-panel";
 import { Avatar } from "@/components/avatar";
+import { ARENA_FIGHTERS } from "@/lib/arena-personas";
 import { getViewer } from "@/lib/auth/session";
 import { isInternalAdminUsername } from "@/lib/auth/internal";
 import { getProfileHref, resolveStoryDestinationPath } from "@/lib/identity";
@@ -159,84 +160,121 @@ export default async function HomePage() {
   return (
     <AppShell
       aside={
-        <div className="panel-soft edge-light overflow-hidden rounded-[30px]">
-          <section className="border-b border-white/[0.08] p-5">
-            <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">Suggested people</p>
-            <div className="mt-4 space-y-3">
-              {suggestions.slice(0, 4).map((user) => (
-                (() => {
-                  const profileHref = getProfileHref(user.username);
-                  const content = (
-                    <>
-                      <Avatar className="h-10 w-10" name={user.displayName} src={user.avatarUrl} />
-                      <div>
-                        <p className="text-sm font-medium">{user.displayName}</p>
-                        <p className="text-xs text-white/50">
-                          {user.username ? `@${user.username}` : "Profile unavailable"}
-                        </p>
-                      </div>
-                    </>
-                  );
-
-                  if (!profileHref) {
-                    return (
-                      <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5" key={user.id}>
-                        {content}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <Link className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5" href={profileHref} key={user.id}>
-                      {content}
-                    </Link>
-                  );
-                })()
-              ))}
+        <div className="space-y-4">
+          {/* Looping Video Sidebar Spotlight */}
+          <Link
+            href="/shorts"
+            className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/15 bg-black p-5 shadow-[0_20px_50px_rgba(0,0,0,0.75)] transition hover:border-white/40"
+          >
+            <BackgroundVideo
+              src="/cinematic/culture-loop.mp4"
+              poster="/cinematic/shot-3.jpg"
+              overlayStyle="card"
+            />
+            <div className="relative z-10 flex items-center justify-between">
+              <span className="rounded-full border border-white/20 bg-black/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white backdrop-blur-md">
+                SHORTS // LIVE
+              </span>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-black/55 text-xs text-white transition group-hover:bg-white group-hover:text-black">
+                ↗
+              </span>
             </div>
-          </section>
-          <section className="border-b border-white/[0.08] p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">Inbox</p>
-              <Link className="text-xs uppercase tracking-[0.18em] text-white/55 hover:text-white" href="/messages">
-                Open
-              </Link>
+            <div className="relative z-10 mt-auto pt-10">
+              <p className="font-display text-2xl font-black uppercase leading-none tracking-tight text-white">
+                CULTURE IN MOTION
+              </p>
+              <p className="mt-1.5 text-xs text-white/75">
+                Watch full-screen vertical clips and studio drops from the community.
+              </p>
             </div>
-            <div className="space-y-3">
-              {conversations.slice(0, 3).map((conversation) => (
+          </Link>
+
+          <div className="panel-soft edge-light overflow-hidden rounded-[30px]">
+            <section className="border-b border-white/[0.08] p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-400">
+                Voices to Know
+              </p>
+              <div className="mt-4 space-y-3">
+                {ARENA_FIGHTERS.map((voice) => (
+                  <Link
+                    className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 transition hover:border-white/25 hover:bg-white/[0.05]"
+                    href={`/profile/${voice.slug}`}
+                    key={voice.slug}
+                  >
+                    <img
+                      src={voice.avatarUrl}
+                      alt={voice.name}
+                      className="h-11 w-11 rounded-2xl object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-bold text-white">{voice.name}</p>
+                        <span className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white/75">
+                          {voice.tag}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-white/55">{voice.role}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+            <section className="border-b border-white/[0.08] p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-400">Inbox</p>
                 <Link
-                  className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3"
-                  href={`/messages/${conversation.id}`}
-                  key={conversation.id}
+                  className="text-xs uppercase tracking-[0.18em] text-white/55 hover:text-white"
+                  href="/messages"
                 >
-                  <Avatar
-                    className="h-11 w-11"
-                    name={conversation.counterpart.displayName}
-                    src={conversation.counterpart.avatarUrl}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-white">{conversation.counterpart.displayName}</p>
-                    <p className="truncate text-sm text-white/62">
-                      {conversation.lastMessage?.body ?? "Start the thread"}
-                    </p>
-                  </div>
-                  {conversation.unreadCount > 0 ? (
-                    <span className="rounded-full bg-accent px-2 py-1 text-xs text-white">{conversation.unreadCount}</span>
-                  ) : null}
+                  Open
                 </Link>
-              ))}
-            </div>
-          </section>
-          <section className="p-5">
-            <p className="text-sm uppercase tracking-[0.24em] text-accent-soft">Trending</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {tags.slice(0, 8).map((tag) => (
-                <Link className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs" href={`/search?q=%23${tag.tag}`} key={tag.tag}>
-                  #{tag.tag}
-                </Link>
-              ))}
-            </div>
-          </section>
+              </div>
+              <div className="space-y-3">
+                {conversations.slice(0, 3).map((conversation) => (
+                  <Link
+                    className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3"
+                    href={`/messages/${conversation.id}`}
+                    key={conversation.id}
+                  >
+                    <Avatar
+                      className="h-11 w-11"
+                      name={conversation.counterpart.displayName}
+                      src={conversation.counterpart.avatarUrl}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-white">
+                        {conversation.counterpart.displayName}
+                      </p>
+                      <p className="truncate text-sm text-white/62">
+                        {conversation.lastMessage?.body ?? "Start the thread"}
+                      </p>
+                    </div>
+                    {conversation.unreadCount > 0 ? (
+                      <span className="rounded-full bg-accent px-2 py-1 text-xs text-white">
+                        {conversation.unreadCount}
+                      </span>
+                    ) : null}
+                  </Link>
+                ))}
+              </div>
+            </section>
+            <section className="p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-400">
+                Trending
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {tags.slice(0, 8).map((tag) => (
+                  <Link
+                    className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs transition hover:border-white/30 hover:text-white"
+                    href={`/search?q=%23${tag.tag}`}
+                    key={tag.tag}
+                  >
+                    #{tag.tag}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </div>
         </div>
       }
       headerMode="brand-only"
@@ -246,18 +284,60 @@ export default async function HomePage() {
     >
       <ArenaQuickComposer />
       <HomeStoriesPanel highlights={highlightItems} stories={storyItems} />
-      <section className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.85fr)]">
+      <section className="grid gap-3.5 md:grid-cols-2">
         <Link
-          className="rounded-[26px] border border-purple-400/35 bg-[linear-gradient(135deg,rgba(139,92,246,0.22),rgba(244,63,94,0.14))] px-5 py-5 text-white shadow-[0_18px_40px_rgba(139,92,246,0.18)] transition hover:border-purple-400/55 hover:brightness-110"
-          href={viewer ? "/ai-tools" : "/login?next=%2Fai-tools"}
+          className="group relative flex min-h-[210px] flex-col justify-between overflow-hidden rounded-[1.6rem] border border-white/15 bg-black p-5 text-white shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition hover:-translate-y-0.5 hover:border-white/40"
+          href="/shorts"
         >
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Creator Studio</p>
-          <h2 className="mt-2 text-2xl font-semibold">Open Creator Studio</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
-            Produce cinema-grade visuals, short-form video, custom audio, and smart drafts in seconds.
-          </p>
+          <BackgroundVideo
+            src="/cinematic/culture-loop.mp4"
+            poster="/cinematic/shot-3.jpg"
+            overlayStyle="card"
+          />
+          <div className="relative z-10 flex items-center justify-between">
+            <span className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white backdrop-blur-md">
+              MOTION // SHORT-FORM
+            </span>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/55 text-xs text-white transition group-hover:bg-white group-hover:text-black">
+              ↗
+            </span>
+          </div>
+          <div className="relative z-10 mt-auto pt-8">
+            <h2 className="font-display text-2xl font-black uppercase tracking-tight text-white">
+              WATCH SHORTS &amp; DROPS
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/80">
+              Full-screen vertical video clips, studio sessions, and visual stories from the room.
+            </p>
+          </div>
         </Link>
-        <HomeAIToolsPanel />
+
+        <Link
+          className="group relative flex min-h-[210px] flex-col justify-between overflow-hidden rounded-[1.6rem] border border-white/15 bg-black p-5 text-white shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition hover:-translate-y-0.5 hover:border-white/40"
+          href={viewer ? "/creator" : "/login?next=%2Fcreator"}
+        >
+          <BackgroundVideo
+            src="/cinematic/creator-loop.mp4"
+            poster="/cinematic/shot-4.jpg"
+            overlayStyle="card"
+          />
+          <div className="relative z-10 flex items-center justify-between">
+            <span className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white backdrop-blur-md">
+              STUDIO // CREATE
+            </span>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/55 text-xs text-white transition group-hover:bg-white group-hover:text-black">
+              ↗
+            </span>
+          </div>
+          <div className="relative z-10 mt-auto pt-8">
+            <h2 className="font-display text-2xl font-black uppercase tracking-tight text-white">
+              OPEN CREATOR STUDIO
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/80">
+              Publish video drops, photo carousels, voice notes, and live community polls.
+            </p>
+          </div>
+        </Link>
       </section>
       {feed.length === 0 ? (
         <EmptyState
